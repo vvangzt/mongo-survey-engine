@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{{ page_title }} · 问研</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="{% if current_user %}/dashboard{% else %}/{% endif %}">
+        <span class="brand-mark">问</span>
+        <span>问研<small>Survey Studio</small></span>
+      </a>
+      <nav class="nav" aria-label="主导航">
+        {% if current_user %}
+          <a class="nav-link" href="/dashboard">我的问卷</a>
+          <div class="user-chip">
+            <span class="avatar">{{ current_user.display_name[0] }}</span>
+            <span>{{ current_user.display_name }}</span>
+          </div>
+          <button class="btn ghost small" id="logoutButton" type="button">退出</button>
+        {% else %}
+          <a class="nav-link" href="/login">登录</a>
+          <a class="btn small" href="/register">免费注册</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <footer class="footer">
+    <div class="shell">问研 Survey Studio · 数据驱动问卷 · MongoDB 课程项目</div>
+  </footer>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <script src="/static/js/common.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

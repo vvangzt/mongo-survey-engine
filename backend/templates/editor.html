@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <a class="small" href="/dashboard">← 返回工作台</a>
+        <div class="eyebrow" style="margin-top: 18px">Editor</div>
+        <h1>问卷编辑器</h1>
+        <p class="muted" id="editorSubtitle">加载中…</p>
+      </div>
+      <div class="actions" id="editorActions">
+        <span class="subtle small" id="saveState">—</span>
+        <button class="btn secondary" id="saveButton" type="button" disabled>保存草稿</button>
+        <button class="btn" id="publishButton" type="button" disabled>发布问卷</button>
+      </div>
+    </div>
+
+    <div id="editorLoading" class="card loading">正在加载问卷…</div>
+    <div id="editorError" class="card empty hidden">
+      <div class="empty-mark">!</div>
+      <h2>无法打开问卷</h2>
+      <p id="editorErrorText"></p>
+      <a class="btn" href="/dashboard">返回工作台</a>
+    </div>
+
+    <div id="editorContent" class="workspace hidden">
+      <section>
+        <div class="alert warning hidden" id="readonlyNotice">
+          该问卷已经发布，题目与跳转规则已冻结。可以查看或关闭问卷，修改内容将在下一版本功能中开放。
+        </div>
+
+        <div class="card card-pad" style="margin-bottom: 22px">
+          <div class="form-grid">
+            <div class="field span-2">
+              <label for="surveyTitle">问卷标题</label>
+              <input id="surveyTitle" maxlength="300" placeholder="给问卷一个清晰的标题">
+            </div>
+            <div class="field span-2">
+              <label for="surveyDescription">问卷说明</label>
+              <textarea id="surveyDescription" maxlength="5000" placeholder="说明问卷用途、填写方式或隐私说明"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">
+          <div>
+            <h2>题目列表</h2>
+            <span class="subtle small" id="questionCount">0 道题</span>
+          </div>
+          <span class="subtle small">按顺序展示，支持服务端跳转</span>
+        </div>
+        <div class="question-list" id="questionList"></div>
+        <div class="add-question-bar" id="addQuestionBar" style="margin-top: 14px">
+          <button class="btn secondary small" type="button" data-add-type="single_choice">＋ 单选题</button>
+          <button class="btn secondary small" type="button" data-add-type="multi_choice">＋ 多选题</button>
+          <button class="btn secondary small" type="button" data-add-type="text">＋ 文本题</button>
+          <button class="btn secondary small" type="button" data-add-type="number">＋ 数字题</button>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <div class="card card-pad">
+          <div class="section-title">
+            <h2>发布设置</h2>
+            <span class="badge draft" id="statusBadge">草稿</span>
+          </div>
+          <div class="meta-list" style="margin-bottom: 18px">
+            <div class="meta-row"><span>版本</span><strong id="versionNumber">—</strong></div>
+            <div class="meta-row"><span>公开路径</span><strong class="mono small" id="surveySlug">—</strong></div>
+          </div>
+          <div style="display: grid; gap: 11px">
+            <label class="checkbox-row">
+              <input id="allowAnonymous" type="checkbox">
+              <span><strong>允许匿名填写</strong><br>关闭后填写者必须登录。</span>
+            </label>
+            <label class="checkbox-row">
+              <input id="allowMultiple" type="checkbox">
+              <span><strong>允许同一账号多次填写</strong><br>匿名答卷无法可靠去重。</span>
+            </label>
+            <div class="field">
+              <label for="closesAt">截止时间</label>
+              <input id="closesAt" type="datetime-local">
+              <span class="hint">留空表示长期开放，可稍后关闭。</span>
+            </div>
+          </div>
+          <div class="actions" style="margin-top: 18px">
+            <a class="btn ghost small hidden" id="previewLink" href="#" target="_blank" rel="noopener">打开填写链接</a>
+            <a class="btn ghost small" id="statsLink" href="#">查看统计</a>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <h2 style="font-size: 16px; margin-bottom: 8px">跳转规则提示</h2>
+          <p class="small muted" style="margin-bottom: 0">
+            跳转规则只指向后面的题目。条件由服务端在提交时重新计算，浏览器不会决定最终路径。
+          </p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<div class="modal-backdrop hidden" id="ruleModal" role="dialog" aria-modal="true" aria-labelledby="ruleTitle">
+  <div class="modal wide">
+    <div class="modal-head">
+      <div>
+        <h2 id="ruleTitle">添加跳转规则</h2>
+        <p id="ruleSubtitle">根据当前题目的回答跳转到后续题目。</p>
+      </div>
+      <button class="btn ghost small" type="button" data-close-rule>关闭</button>
+    </div>
+    <form id="ruleForm">
+      <div class="form-grid">
+        <div class="field">
+          <label for="ruleOperator">条件</label>
+          <select id="ruleOperator"></select>
+        </div>
+        <div class="field span-2" id="ruleOperandField">
+          <label>满足值</label>
+          <div id="ruleOperand"></div>
+        </div>
+        <div class="field">
+          <label for="ruleAction">执行动作</label>
+          <select id="ruleAction">
+            <option value="goto">跳转到题目</option>
+            <option value="end">结束问卷</option>
+          </select>
+        </div>
+        <div class="field" id="ruleTargetField">
+          <label for="ruleTarget">目标题目</label>
+          <select id="ruleTarget"></select>
+        </div>
+      </div>
+      <div class="form-error hidden" id="ruleError" role="alert"></div>
+      <div class="modal-foot">
+        <button class="btn secondary" type="button" data-close-rule>取消</button>
+        <button class="btn" id="saveRuleButton" type="submit">保存规则</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>window.SURVEY_ID = {{ survey_id|tojson }};</script>
+<script src="/static/js/editor.js" defer></script>
+{% endblock %}

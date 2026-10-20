@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">Workspace</div>
+        <h1>{{ current_user.display_name }}，今天想了解什么？</h1>
+        <p class="muted">在这里管理问卷、发布链接，并查看实时统计。</p>
+      </div>
+      <button class="btn" id="openCreate" type="button">创建问卷</button>
+    </div>
+
+    <div class="summary-grid">
+      <div class="card metric">
+        <div class="metric-label">全部问卷</div>
+        <div class="metric-value" id="metricTotal">—</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-label">草稿</div>
+        <div class="metric-value" id="metricDraft">—</div>
+      </div>
+      <div class="card metric">
+        <div class="metric-label">已发布 / 已关闭</div>
+        <div class="metric-value" id="metricLive">—</div>
+      </div>
+    </div>
+
+    <div id="surveyLoading">
+      <div class="grid survey-grid">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+    </div>
+    <div id="surveyList" class="grid survey-grid hidden"></div>
+    <div id="surveyEmpty" class="card empty hidden">
+      <div class="empty-mark">＋</div>
+      <h2>从第一份问卷开始</h2>
+      <p>建立一个问题清晰、逻辑严谨的调查，然后把链接发给你的受访者。</p>
+      <button class="btn" id="emptyCreate" type="button">创建问卷</button>
+    </div>
+  </div>
+</main>
+
+<div class="modal-backdrop hidden" id="createModal" role="dialog" aria-modal="true" aria-labelledby="createTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="createTitle">创建问卷</h2>
+        <p>先建立草稿，随后进入编辑器添加题目和跳转规则。</p>
+      </div>
+      <button class="btn ghost small" type="button" data-close-modal>关闭</button>
+    </div>
+    <form id="createForm">
+      <div class="form-grid">
+        <div class="field span-2">
+          <label for="title">问卷标题</label>
+          <input id="title" name="title" maxlength="300" placeholder="例如：数据库课程学习体验调查" required>
+        </div>
+        <div class="field span-2">
+          <label for="description">问卷说明</label>
+          <textarea id="description" name="description" maxlength="5000" placeholder="告诉受访者这份问卷的用途和填写说明。"></textarea>
+        </div>
+        <div class="field span-2">
+          <label for="closes_at">截止时间（可选）</label>
+          <input id="closes_at" name="closes_at" type="datetime-local">
+        </div>
+        <label class="checkbox-row span-2">
+          <input id="allow_anonymous" type="checkbox" checked>
+          <span><strong>允许匿名填写。</strong> 不记录受访者身份；关闭后填写者必须先登录。</span>
+        </label>
+        <label class="checkbox-row span-2">
+          <input id="allow_multiple_responses" type="checkbox" checked>
+          <span><strong>允许同一账号多次填写。</strong> 关闭后同一登录用户只能提交一次；匿名答卷无法可靠去重。</span>
+        </label>
+      </div>
+      <div class="form-error hidden" id="createError" role="alert"></div>
+      <div class="modal-foot">
+        <button class="btn secondary" type="button" data-close-modal>取消</button>
+        <button class="btn" id="createButton" type="submit">创建并编辑</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="settingsTitle">运营设置</h2>
+        <p>已发布的题目和跳转规则已冻结，这里只调整展示与收集策略。</p>
+      </div>
+      <button class="btn ghost small" type="button" data-close-settings>关闭</button>
+    </div>
+    <form id="settingsForm">
+      <input type="hidden" id="settingsSurveyId">
+      <div class="form-grid">
+        <div class="field span-2">
+          <label for="settingsTitleInput">问卷标题</label>
+          <input id="settingsTitleInput" maxlength="300" required>
+        </div>
+        <div class="field span-2">
+          <label for="settingsDescription">问卷说明</label>
+          <textarea id="settingsDescription" maxlength="5000"></textarea>
+        </div>
+        <div class="field span-2">
+          <label for="settingsClosesAt">截止时间</label>
+          <input id="settingsClosesAt" type="datetime-local">
+          <span class="hint">修改后立即生效；留空表示长期开放。</span>
+        </div>
+        <label class="checkbox-row span-2">
+          <input id="settingsAnonymous" type="checkbox">
+          <span><strong>允许匿名填写。</strong> 关闭后新填写者必须登录。</span>
+        </label>
+        <label class="checkbox-row span-2">
+          <input id="settingsMultiple" type="checkbox">
+          <span><strong>允许同一账号多次填写。</strong> 只影响后续提交。</span>
+        </label>
+      </div>
+      <div class="form-error hidden" id="settingsError" role="alert"></div>
+      <div class="modal-foot">
+        <button class="btn secondary" type="button" data-close-settings>取消</button>
+        <button class="btn" id="settingsButton" type="submit">保存设置</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/dashboard.js" defer></script>
+{% endblock %}

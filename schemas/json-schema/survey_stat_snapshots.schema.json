@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/survey_stat_snapshots.schema.json",
+  "title": "survey_stat_snapshots collection document (optional projection)",
+  "description": "Optional materialized statistics, one document per survey version. It is a rebuildable projection, never the source of truth. The dashboard can read it for scale; the raw responses remain authoritative. Text answers themselves are never copied here: only counts are materialized, and owner-only exports paginate the responses collection. Rebuild by computing from responses and replacing the whole snapshot document atomically.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "survey_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "survey_version_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "response_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 300,
+      "items": {
+        "$ref": "#/$defs/QuestionStats"
+      }
+    },
+    "latest_submitted_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Watermark: the latest submitted_at included in this snapshot."
+    },
+    "computed_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "survey_id",
+    "survey_version_id",
+    "response_count",
+    "questions",
+    "latest_submitted_at",
+    "computed_at"
+  ],
+  "$defs": {
+    "QuestionStatsCommon": {
+      "type": "object",
+      "properties": {
+        "question_id": {
+          "$ref": "common.schema.json#/$defs/QuestionId"
+        },
+        "answered_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "question_id",
+        "answered_count"
+      ]
+    },
+    "OptionCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "option_id": {
+          "$ref": "common.schema.json#/$defs/OptionId"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "option_id",
+        "count"
+      ]
+    },
+    "ChoiceQuestionStats": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionStatsCommon"
+        }
+      ],
+      "properties": {
+        "question_type": {
+          "enum": [
+            "single_choice",
+            "multi_choice"
+          ]
+        },
+        "option_counts": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/OptionCount"
+          },
+          "description": "Include zero-count options from the version definition so charts have a stable shape."
+        }
+      },
+      "required": [
+        "question_type",
+        "option_counts"
+      ],
+      "unevaluatedProperties": false
+    },
+    "TextQuestionStats": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionStatsCommon"
+        }
+      ],
+      "properties": {
+        "question_type": {
+          "const": "text"
+        }
+      },
+      "required": [
+        "question_type"
+      ],
+      "unevaluatedProperties": false
+    },
+    "NumberQuestionStats": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionStatsCommon"
+        }
+      ],
+      "properties": {
+        "question_type": {
+          "const": "number"
+        },
+        "numeric_stats": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sum": {
+                  "type": "number"
+                },
+                "avg": {
+                  "type": "number"
+                },
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sum",
+                "avg",
+                "min",
+                "max"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "question_type",
+        "numeric_stats"
+      ],
+      "unevaluatedProperties": false
+    },
+    "QuestionStats": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ChoiceQuestionStats"
+        },
+        {
+          "$ref": "#/$defs/TextQuestionStats"
+        },
+        {
+          "$ref": "#/$defs/NumberQuestionStats"
+        }
+      ]
+    }
+  }
+}

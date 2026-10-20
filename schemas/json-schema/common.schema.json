@@ -1,0 +1,643 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/common.schema.json",
+  "title": "Questionnaire domain common definitions",
+  "description": "JSON Schema Draft 2020-12 shared definitions. Persisted MongoDB documents use string ObjectIds in JSON and BSON ObjectId in storage. All timestamps are UTC ISO-8601 strings in JSON.",
+  "$defs": {
+    "ObjectId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "description": "24-character hexadecimal MongoDB ObjectId."
+    },
+    "UtcDateTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp with timezone; the application stores and returns UTC."
+    },
+    "Slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{4,61}[a-z0-9])$",
+      "minLength": 6,
+      "maxLength": 63,
+      "description": "Public URL slug. Lowercase base36 words plus hyphens; generated randomly and never reused."
+    },
+    "Email": {
+      "type": "string",
+      "format": "email",
+      "minLength": 3,
+      "maxLength": 254
+    },
+    "QuestionId": {
+      "type": "string",
+      "pattern": "^q_[A-Za-z0-9_-]{8,64}$",
+      "description": "Stable question identifier. Never use array positions in answers or jump targets."
+    },
+    "OptionId": {
+      "type": "string",
+      "pattern": "^o_[A-Za-z0-9_-]{8,64}$",
+      "description": "Stable option identifier. Never use array positions in answers or jump conditions."
+    },
+    "RuleId": {
+      "type": "string",
+      "pattern": "^r_[A-Za-z0-9_-]{8,64}$",
+      "description": "Stable identifier of a jump rule, unique within its question."
+    },
+    "SubmissionToken": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{16,128}$",
+      "description": "Client-generated idempotency key scoped to one survey. Retries must reuse the same token."
+    },
+    "ContentHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the canonical published version content."
+    },
+    "SchemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Physical document contract version. Increment only for breaking storage changes."
+    },
+    "Option": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "option_id": {
+          "$ref": "#/$defs/OptionId"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "option_id",
+        "label"
+      ]
+    },
+    "MultiChoiceValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "At most one of exact_selected and the min/max pair may be configured. If required=true and no minimum is configured, the effective minimum is 1. Unicode constraints are applied by the server.",
+      "properties": {
+        "min_selected": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "max_selected": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "exact_selected": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "exact_selected",
+              "min_selected"
+            ]
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "exact_selected",
+              "max_selected"
+            ]
+          }
+        }
+      ]
+    },
+    "TextValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_length": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000,
+          "default": 0,
+          "description": "Measured in Unicode code points after optional trimming."
+        },
+        "max_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5000,
+          "description": "Hard upper bound; also protects the 16 MB response document limit."
+        },
+        "trim": {
+          "type": "boolean",
+          "default": true,
+          "description": "The server strips leading/trailing whitespace before storing and measuring."
+        }
+      },
+      "required": [
+        "max_length"
+      ]
+    },
+    "NumberValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "integer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the answer must be an integer."
+        },
+        "min": {
+          "type": "number",
+          "description": "Inclusive lower bound; may be an integer or decimal."
+        },
+        "max": {
+          "type": "number",
+          "description": "Inclusive upper bound; may be an integer or decimal."
+        }
+      },
+      "required": [
+        "integer"
+      ],
+      "description": "When integer=true only safe integers are accepted. When integer=false finite decimal numbers are accepted. Bounds are inclusive."
+    },
+    "FallbackAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "next",
+            "end"
+          ]
+        }
+      },
+      "required": [
+        "action"
+      ]
+    },
+    "GotoAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "const": "goto"
+        },
+        "target_question_id": {
+          "$ref": "#/$defs/QuestionId"
+        }
+      },
+      "required": [
+        "action",
+        "target_question_id"
+      ]
+    },
+    "EndAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "const": "end"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    },
+    "RuleAction": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/GotoAction"
+        },
+        {
+          "$ref": "#/$defs/EndAction"
+        }
+      ]
+    },
+    "ConditionOperator": {
+      "type": "string",
+      "enum": [
+        "eq",
+        "neq",
+        "in",
+        "not_in",
+        "includes_any",
+        "includes_all",
+        "includes_none",
+        "equals_set",
+        "selection_count_eq",
+        "selection_count_gte",
+        "selection_count_lte",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "between"
+      ],
+      "description": "The allowed value shape depends on the source question type. Valid combinations are documented in the design report and checked during publication."
+    },
+    "ConditionValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/OptionId"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OptionId"
+          },
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true
+        },
+        {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Inclusive [low, high] pair used only by the between operator."
+        }
+      ]
+    },
+    "JumpCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "question_id": {
+          "$ref": "#/$defs/QuestionId"
+        },
+        "operator": {
+          "$ref": "#/$defs/ConditionOperator"
+        },
+        "value": {
+          "$ref": "#/$defs/ConditionValue"
+        }
+      },
+      "required": [
+        "question_id",
+        "operator",
+        "value"
+      ]
+    },
+    "ConditionGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "all",
+            "any"
+          ]
+        },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/JumpCondition"
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "conditions"
+      ]
+    },
+    "JumpRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/RuleId"
+        },
+        "when": {
+          "$ref": "#/$defs/ConditionGroup"
+        },
+        "then": {
+          "$ref": "#/$defs/RuleAction"
+        }
+      },
+      "required": [
+        "rule_id",
+        "when",
+        "then"
+      ]
+    },
+    "JumpLogic": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rules are evaluated in array order after the owning question. The first matching rule wins. If no rule matches, fallback is used. Conditions may reference only the current or an earlier question; goto targets must point forward. The server, not the browser, evaluates this structure.",
+      "properties": {
+        "fallback": {
+          "$ref": "#/$defs/FallbackAction"
+        },
+        "rules": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/JumpRule"
+          }
+        }
+      },
+      "required": [
+        "fallback"
+      ]
+    },
+    "QuestionCommon": {
+      "type": "object",
+      "properties": {
+        "question_id": {
+          "$ref": "#/$defs/QuestionId"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "logic": {
+          "$ref": "#/$defs/JumpLogic"
+        }
+      },
+      "required": [
+        "question_id",
+        "title",
+        "required"
+      ]
+    },
+    "SingleChoiceQuestion": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionCommon"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "single_choice"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Option"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "options"
+      ],
+      "unevaluatedProperties": false
+    },
+    "MultiChoiceQuestion": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionCommon"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "multi_choice"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Option"
+          }
+        },
+        "validation": {
+          "$ref": "#/$defs/MultiChoiceValidation"
+        }
+      },
+      "required": [
+        "type",
+        "options",
+        "validation"
+      ],
+      "unevaluatedProperties": false
+    },
+    "TextQuestion": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionCommon"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "text"
+        },
+        "validation": {
+          "$ref": "#/$defs/TextValidation"
+        }
+      },
+      "required": [
+        "type",
+        "validation"
+      ],
+      "unevaluatedProperties": false
+    },
+    "NumberQuestion": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionCommon"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "number"
+        },
+        "validation": {
+          "$ref": "#/$defs/NumberValidation"
+        }
+      },
+      "required": [
+        "type",
+        "validation"
+      ],
+      "unevaluatedProperties": false
+    },
+    "Question": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SingleChoiceQuestion"
+        },
+        {
+          "$ref": "#/$defs/MultiChoiceQuestion"
+        },
+        {
+          "$ref": "#/$defs/TextQuestion"
+        },
+        {
+          "$ref": "#/$defs/NumberQuestion"
+        }
+      ]
+    },
+    "SingleChoiceAnswer": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "question_id": {
+              "$ref": "#/$defs/QuestionId"
+            }
+          },
+          "required": [
+            "question_id"
+          ]
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "single_choice"
+        },
+        "option_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/OptionId"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "option_ids"
+      ],
+      "unevaluatedProperties": false
+    },
+    "MultiChoiceAnswer": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "question_id": {
+              "$ref": "#/$defs/QuestionId"
+            }
+          },
+          "required": [
+            "question_id"
+          ]
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "multi_choice"
+        },
+        "option_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/OptionId"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "option_ids"
+      ],
+      "unevaluatedProperties": false
+    },
+    "TextAnswer": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "question_id": {
+              "$ref": "#/$defs/QuestionId"
+            }
+          },
+          "required": [
+            "question_id"
+          ]
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "text"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "unevaluatedProperties": false
+    },
+    "NumberAnswer": {
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "question_id": {
+              "$ref": "#/$defs/QuestionId"
+            }
+          },
+          "required": [
+            "question_id"
+          ]
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "number"
+        },
+        "number": {
+          "type": "number",
+          "description": "Finite integer or decimal; the question's integer flag is enforced by the service."
+        }
+      },
+      "required": [
+        "type",
+        "number"
+      ],
+      "unevaluatedProperties": false
+    },
+    "Answer": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SingleChoiceAnswer"
+        },
+        {
+          "$ref": "#/$defs/MultiChoiceAnswer"
+        },
+        {
+          "$ref": "#/$defs/TextAnswer"
+        },
+        {
+          "$ref": "#/$defs/NumberAnswer"
+        }
+      ]
+    }
+  }
+}

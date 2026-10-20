@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/users.schema.json",
+  "title": "users collection document",
+  "description": "One document per registered account. username is the login identity; email is a unique contact address. Store an Argon2id password hash, never a reversible password.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "username": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]{3,32}$",
+      "minLength": 3,
+      "maxLength": 32,
+      "description": "Normalized lowercase login name; unique."
+    },
+    "email": {
+      "$ref": "common.schema.json#/$defs/Email"
+    },
+    "password_hash": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 255,
+      "description": "Encoded Argon2id hash including salt and parameters."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "status": {
+      "enum": [
+        "active",
+        "disabled"
+      ]
+    },
+    "last_login_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "username",
+    "email",
+    "password_hash",
+    "display_name",
+    "status",
+    "last_login_at",
+    "created_at",
+    "updated_at"
+  ]
+}

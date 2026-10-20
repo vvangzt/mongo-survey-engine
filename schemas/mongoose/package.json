@@ -1,0 +1,19 @@
+{
+  "name": "survey-system-mongo-models",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mongoose models for the questionnaire MongoDB design",
+  "main": "models/index.js",
+  "scripts": {
+    "check": "node ../../scripts/verify_mongoose.js"
+  },
+  "peerDependencies": {
+    "mongoose": ">=8.0.0 <9.0.0"
+  },
+  "devDependencies": {
+    "mongoose": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

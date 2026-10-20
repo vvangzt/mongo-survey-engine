@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="auth-page">
+  <div class="shell auth-shell">
+    <section class="auth-story">
+      <div>
+        <div class="eyebrow">Survey Studio</div>
+        <h1>从第一个问题开始，建立你的调查。</h1>
+        <p>注册后即可创建问卷、配置题型与跳转规则，并通过公开链接收集匿名或实名答卷。</p>
+        <div class="feature-list">
+          <div>问卷版本在发布时冻结，历史答案可解释</div>
+          <div>多选题支持数量限制</div>
+          <div>回答和统计自动保存到 MongoDB</div>
+        </div>
+      </div>
+      <p class="small">问研 · 让问卷更像一次严谨的对话。</p>
+    </section>
+
+    <section class="card auth-panel">
+      <div class="eyebrow">开始使用</div>
+      <h2>创建账号</h2>
+      <p class="sub">用户名用于登录，电子邮件用于账号识别。</p>
+
+      <form id="registerForm" data-next="{{ next_url }}" novalidate>
+        <div class="field">
+          <label for="display_name">显示名称</label>
+          <input id="display_name" name="display_name" maxlength="80" placeholder="例如：小李" autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="username">用户名</label>
+          <input id="username" name="username" minlength="3" maxlength="32" pattern="[a-z0-9_]{3,32}" placeholder="3–32 位小写字母、数字或下划线" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="email">电子邮件</label>
+          <input id="email" name="email" type="email" maxlength="254" placeholder="name@example.com" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input id="password" name="password" type="password" minlength="8" maxlength="128" placeholder="至少 8 位" autocomplete="new-password" required>
+        </div>
+        <div class="field">
+          <label for="confirm_password">确认密码</label>
+          <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required>
+        </div>
+        <div class="form-error hidden" id="registerError" role="alert"></div>
+        <button class="btn" id="registerButton" type="submit">创建并登录</button>
+      </form>
+
+      <div class="auth-switch">
+        已经有账号？
+        <a href="{% if next_url %}/login?next={{ next_url|urlencode }}{% else %}/login{% endif %}">直接登录</a>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/register.js" defer></script>
+{% endblock %}

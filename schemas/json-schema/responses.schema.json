@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/responses.schema.json",
+  "title": "responses collection document",
+  "description": "Exactly one document per accepted submission. The document is validated against the pinned survey_version, then inserted as a single-document atomic write. is_anonymous=true requires respondent_id=null; false requires a respondent_id. Duplicate question answers are rejected by the service. The unique (survey_id, submission_token) index makes retries idempotent.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "survey_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "survey_version_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "respondent_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ObjectId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Identity is intentionally discarded for anonymous responses; no raw IP or user agent is stored."
+    },
+    "is_anonymous": {
+      "type": "boolean"
+    },
+    "submission_token": {
+      "$ref": "common.schema.json#/$defs/SubmissionToken"
+    },
+    "answers": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 300,
+      "items": {
+        "$ref": "common.schema.json#/$defs/Answer"
+      }
+    },
+    "submitted_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime",
+      "description": "Assigned by the server at acceptance; never trusted from the client."
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "survey_id",
+    "survey_version_id",
+    "respondent_id",
+    "is_anonymous",
+    "submission_token",
+    "answers",
+    "submitted_at"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "is_anonymous": {
+            "const": true
+          }
+        },
+        "required": [
+          "is_anonymous"
+        ]
+      },
+      "then": {
+        "properties": {
+          "respondent_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "is_anonymous": {
+            "const": false
+          }
+        },
+        "required": [
+          "is_anonymous"
+        ]
+      },
+      "then": {
+        "properties": {
+          "respondent_id": {
+            "$ref": "common.schema.json#/$defs/ObjectId"
+          }
+        }
+      }
+    }
+  ]
+}

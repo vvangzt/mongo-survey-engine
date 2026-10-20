@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="fill-page">
+  <div class="shell fill-shell">
+    <div id="fillRoot" class="card fill-card">
+      <div class="loading">正在加载问卷…</div>
+    </div>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+  window.SURVEY_SLUG = {{ slug|tojson }};
+  window.IS_AUTHENTICATED = {{ (current_user is not none)|tojson }};
+</script>
+<script src="/static/js/fill.js" defer></script>
+{% endblock %}

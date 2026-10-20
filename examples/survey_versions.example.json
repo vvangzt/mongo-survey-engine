@@ -1,0 +1,198 @@
+{
+  "_id": "66f0a1b2c3d4e5f6a7b8c9d1",
+  "schema_version": 1,
+  "survey_id": "66f0a1b2c3d4e5f6a7b8c9d0",
+  "version_no": 1,
+  "state": "published",
+  "content_schema_version": 1,
+  "revision": 4,
+  "questions": [
+    {
+      "question_id": "q_role_0001",
+      "type": "single_choice",
+      "title": "你的身份是？",
+      "description": "用于分组统计，不会公开个人答案。",
+      "required": true,
+      "options": [
+        {
+          "option_id": "o_student_0001",
+          "label": "学生"
+        },
+        {
+          "option_id": "o_teacher_0001",
+          "label": "教师"
+        }
+      ],
+      "logic": {
+        "fallback": {
+          "action": "next"
+        },
+        "rules": [
+          {
+            "rule_id": "r_teacher_0001",
+            "when": {
+              "mode": "all",
+              "conditions": [
+                {
+                  "question_id": "q_role_0001",
+                  "operator": "eq",
+                  "value": "o_teacher_0001"
+                }
+              ]
+            },
+            "then": {
+              "action": "goto",
+              "target_question_id": "q_recommend_0006"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "q_resources_0002",
+      "type": "multi_choice",
+      "title": "过去一学期，你使用过哪些课程资源？",
+      "required": false,
+      "options": [
+        {
+          "option_id": "o_slides_0001",
+          "label": "课件"
+        },
+        {
+          "option_id": "o_videos_0001",
+          "label": "录播视频"
+        },
+        {
+          "option_id": "o_lab_0000001",
+          "label": "实验环境"
+        }
+      ],
+      "validation": {
+        "min_selected": 1,
+        "max_selected": 3
+      },
+      "logic": {
+        "fallback": {
+          "action": "next"
+        },
+        "rules": [
+          {
+            "rule_id": "r_lab_path_0002",
+            "when": {
+              "mode": "all",
+              "conditions": [
+                {
+                  "question_id": "q_resources_0002",
+                  "operator": "includes_any",
+                  "value": [
+                    "o_lab_0000001"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "action": "goto",
+              "target_question_id": "q_rating_0004"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "q_nolab_0003",
+      "type": "text",
+      "title": "你没有使用实验资源的主要原因是什么？",
+      "description": "可留空。",
+      "required": false,
+      "validation": {
+        "min_length": 0,
+        "max_length": 1000,
+        "trim": true
+      }
+    },
+    {
+      "question_id": "q_rating_0004",
+      "type": "number",
+      "title": "你对本课程的整体满意度（1-5 分）",
+      "required": true,
+      "validation": {
+        "integer": true,
+        "min": 1,
+        "max": 5
+      },
+      "logic": {
+        "fallback": {
+          "action": "next"
+        },
+        "rules": [
+          {
+            "rule_id": "r_rating_high_04",
+            "when": {
+              "mode": "all",
+              "conditions": [
+                {
+                  "question_id": "q_rating_0004",
+                  "operator": "gte",
+                  "value": 4
+                }
+              ]
+            },
+            "then": {
+              "action": "goto",
+              "target_question_id": "q_recommend_0006"
+            }
+          },
+          {
+            "rule_id": "r_rating_low_004",
+            "when": {
+              "mode": "all",
+              "conditions": [
+                {
+                  "question_id": "q_rating_0004",
+                  "operator": "lt",
+                  "value": 4
+                }
+              ]
+            },
+            "then": {
+              "action": "goto",
+              "target_question_id": "q_improve_0005"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "question_id": "q_improve_0005",
+      "type": "text",
+      "title": "请写下你最希望改进的一点",
+      "required": false,
+      "validation": {
+        "min_length": 0,
+        "max_length": 2000,
+        "trim": true
+      }
+    },
+    {
+      "question_id": "q_recommend_0006",
+      "type": "single_choice",
+      "title": "你会向同学推荐这门课程吗？",
+      "required": true,
+      "options": [
+        {
+          "option_id": "o_yes_0000001",
+          "label": "会"
+        },
+        {
+          "option_id": "o_no_00000001",
+          "label": "不会"
+        }
+      ]
+    }
+  ],
+  "created_by": "651f1c2a9b3e4d5f6a7b8c9d",
+  "created_at": "2026-09-20T09:35:00Z",
+  "updated_at": "2026-10-01T00:00:00Z",
+  "published_at": "2026-10-01T00:00:00Z",
+  "content_hash": "a3f1c8e07b2d4965a3f1c8e07b2d4965a3f1c8e07b2d4965a3f1c8e07b2d4965"
+}

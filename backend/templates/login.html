@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="auth-page">
+  <div class="shell auth-shell">
+    <section class="auth-story">
+      <div>
+        <div class="eyebrow">Survey Studio</div>
+        <h1>把问题设计好，答案自然会清晰。</h1>
+        <p>创建问卷、设置条件跳转、实时查看统计。所有答卷与版本都保存在 MongoDB 中。</p>
+        <div class="feature-list">
+          <div>四种题型与灵活的校验规则</div>
+          <div>数据驱动跳转，服务端重放校验</div>
+          <div>匿名填写与实时聚合统计</div>
+        </div>
+      </div>
+      <p class="small">问研 · 专注于可靠的问卷数据。</p>
+    </section>
+
+    <section class="card auth-panel">
+      <div class="eyebrow">欢迎回来</div>
+      <h2>登录你的工作台</h2>
+      <p class="sub">继续编辑草稿，或查看已经收集的统计结果。</p>
+
+      <form id="loginForm" data-next="{{ next_url }}" novalidate>
+        <div class="field">
+          <label for="username">用户名</label>
+          <input id="username" name="username" autocomplete="username" placeholder="例如 owner_01" required>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" placeholder="输入你的密码" required>
+        </div>
+        <div class="form-error hidden" id="loginError" role="alert"></div>
+        <button class="btn" id="loginButton" type="submit">登录</button>
+      </form>
+
+      <div class="auth-switch">
+        还没有账号？
+        <a href="{% if next_url %}/register?next={{ next_url|urlencode }}{% else %}/register{% endif %}">创建一个</a>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/login.js" defer></script>
+{% endblock %}

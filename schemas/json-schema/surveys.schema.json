@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/surveys.schema.json",
+  "title": "surveys collection document",
+  "description": "Mutable survey identity, ownership, public URL and lifecycle. Question content is deliberately stored in an immutable survey_versions document, not here. Semantic invariants (checked by the service): status=published implies published_version_id and published_at are set; opens_at < closes_at; only the owner may list or modify; slug is immutable after the first publication.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "owner_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "slug": {
+      "$ref": "common.schema.json#/$defs/Slug"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 5000
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "published",
+        "closed"
+      ]
+    },
+    "allow_anonymous": {
+      "type": "boolean"
+    },
+    "allow_multiple_responses": {
+      "type": "boolean",
+      "description": "Whether an authenticated respondent may submit more than once. Anonymous responses cannot be deduplicated reliably."
+    },
+    "opens_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "closes_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "current_draft_version_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ObjectId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "published_version_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ObjectId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "last_version_no": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "published_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "closed_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deleted_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Soft-delete marker. Published links and responses are not hard-deleted synchronously."
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "owner_id",
+    "slug",
+    "title",
+    "description",
+    "status",
+    "allow_anonymous",
+    "allow_multiple_responses",
+    "opens_at",
+    "closes_at",
+    "current_draft_version_id",
+    "published_version_id",
+    "last_version_no",
+    "published_at",
+    "closed_at",
+    "deleted_at",
+    "created_at",
+    "updated_at"
+  ]
+}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="card empty" style="margin-top: 40px">
+      <div class="empty-mark">!</div>
+      <h2>{{ error_title or "页面不可用" }}</h2>
+      <p>{{ error_message or "请求的内容不存在或你没有访问权限。" }}</p>
+      <a class="btn" href="/dashboard">返回工作台</a>
+    </div>
+  </div>
+</main>
+{% endblock %}

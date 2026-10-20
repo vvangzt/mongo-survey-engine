@@ -1,0 +1,81 @@
+{
+  "_id": "66f0a1b2c3d4e5f6a7b8c9d3",
+  "schema_version": 1,
+  "survey_id": "66f0a1b2c3d4e5f6a7b8c9d0",
+  "survey_version_id": "66f0a1b2c3d4e5f6a7b8c9d1",
+  "response_count": 128,
+  "questions": [
+    {
+      "question_id": "q_role_0001",
+      "question_type": "single_choice",
+      "answered_count": 128,
+      "option_counts": [
+        {
+          "option_id": "o_student_0001",
+          "count": 96
+        },
+        {
+          "option_id": "o_teacher_0001",
+          "count": 32
+        }
+      ]
+    },
+    {
+      "question_id": "q_resources_0002",
+      "question_type": "multi_choice",
+      "answered_count": 110,
+      "option_counts": [
+        {
+          "option_id": "o_slides_0001",
+          "count": 90
+        },
+        {
+          "option_id": "o_videos_0001",
+          "count": 64
+        },
+        {
+          "option_id": "o_lab_0000001",
+          "count": 45
+        }
+      ]
+    },
+    {
+      "question_id": "q_nolab_0003",
+      "question_type": "text",
+      "answered_count": 38
+    },
+    {
+      "question_id": "q_rating_0004",
+      "question_type": "number",
+      "answered_count": 120,
+      "numeric_stats": {
+        "sum": 402,
+        "avg": 3.35,
+        "min": 1,
+        "max": 5
+      }
+    },
+    {
+      "question_id": "q_improve_0005",
+      "question_type": "text",
+      "answered_count": 64
+    },
+    {
+      "question_id": "q_recommend_0006",
+      "question_type": "single_choice",
+      "answered_count": 118,
+      "option_counts": [
+        {
+          "option_id": "o_yes_0000001",
+          "count": 86
+        },
+        {
+          "option_id": "o_no_00000001",
+          "count": 32
+        }
+      ]
+    }
+  ],
+  "latest_submitted_at": "2026-10-19T03:42:10Z",
+  "computed_at": "2026-10-19T04:00:00Z"
+}

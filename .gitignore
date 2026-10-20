@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+data/
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
+submission/
+大作业一第一阶段.pdf

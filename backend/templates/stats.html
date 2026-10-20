@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <a class="small" href="/dashboard">← 返回工作台</a>
+        <div class="eyebrow" style="margin-top: 18px">Analytics</div>
+        <h1 id="statsTitle">问卷统计</h1>
+        <p class="muted" id="statsSubtitle">正在读取统计结果…</p>
+      </div>
+      <div class="actions">
+        <a class="btn secondary" id="editLink" href="#">查看题目</a>
+        <button class="btn" id="refreshButton" type="button">刷新数据</button>
+      </div>
+    </div>
+
+    <div id="statsLoading" class="card loading">正在聚合答卷数据…</div>
+    <div id="statsError" class="card empty hidden">
+      <div class="empty-mark">!</div>
+      <h2>统计暂时不可用</h2>
+      <p id="statsErrorText"></p>
+      <a class="btn" href="/dashboard">返回工作台</a>
+    </div>
+
+    <div id="statsContent" class="hidden">
+      <div class="summary-grid">
+        <div class="card metric">
+          <div class="metric-label">总提交数</div>
+          <div class="metric-value" id="responseCount">—</div>
+        </div>
+        <div class="card metric">
+          <div class="metric-label">题目数量</div>
+          <div class="metric-value" id="questionTotal">—</div>
+        </div>
+        <div class="card metric">
+          <div class="metric-label">统计版本</div>
+          <div class="metric-value" id="versionNo" style="font-size:22px">—</div>
+        </div>
+      </div>
+      <p class="small subtle" id="generatedAt" style="margin: -12px 0 20px"></p>
+      <div class="grid" id="questionStats" style="gap:14px"></div>
+    </div>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>window.SURVEY_ID = {{ survey_id|tojson }};</script>
+<script src="/static/js/stats.js" defer></script>
+{% endblock %}
