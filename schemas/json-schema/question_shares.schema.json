@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/question_shares.schema.json",
+  "title": "question_shares collection document",
+  "description": "One explicit share grant for a question. A question with visibility=shared is usable only by its owner and the grantees listed here; permission=view allows reading, permission=use also allows inserting the question into one's own survey. Semantic invariants (checked by the service): granted_by must be the question owner; the owner does not need a share record; (entity_id, grantee_id) is unique.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "entity_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Shared questions document."
+    },
+    "grantee_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "User receiving the grant."
+    },
+    "permission": {
+      "enum": [
+        "view",
+        "use"
+      ],
+      "description": "view is read-only; use also allows inserting the question into one's own surveys."
+    },
+    "granted_by": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "User who granted the share; must be the question owner."
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "entity_id",
+    "grantee_id",
+    "permission",
+    "granted_by",
+    "created_at"
+  ]
+}

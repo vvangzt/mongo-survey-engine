@@ -21,6 +21,7 @@ from .dependencies import (
     DatabaseDep,
     OptionalCurrentUserIdDep,
 )
+from .questions.service import QuestionLibraryService
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
@@ -95,16 +96,32 @@ async def _owned_survey(
 
 
 def _not_found_page(request: Request, user: dict):
+    return _error_page(
+        request,
+        user,
+        title="问卷不存在",
+        message="问卷可能已被删除，或者不属于当前账号。",
+    )
+
+
+def _error_page(
+    request: Request,
+    user: dict,
+    *,
+    title: str,
+    message: str,
+    status_code: int = 404,
+):
     return templates.TemplateResponse(
         request=request,
         name="error.html",
-        status_code=404,
+        status_code=status_code,
         context=_ctx(
             request,
-            title="问卷不存在",
+            title=title,
             user=user,
-            error_title="问卷不存在",
-            error_message="问卷可能已被删除，或者不属于当前账号。",
+            error_title=title,
+            error_message=message,
         ),
     )
 
@@ -245,6 +262,156 @@ async def public_fill_page(
             title="填写问卷",
             user=user,
             slug=slug,
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# phase 2: shared question library pages
+# ---------------------------------------------------------------------------
+
+
+def _object_id_or_none(raw: str):
+    try:
+        return ObjectId(raw)
+    except Exception:
+        return None
+
+
+async def _question_visible(
+    db: AsyncDatabase, user: dict, question_id: str
+) -> bool:
+    service = QuestionLibraryService(db)
+    oid = _object_id_or_none(question_id)
+    if oid is None:
+        return False
+    try:
+        await service.get_question(ObjectId(user["id"]), oid)
+    except Exception:
+        return False
+    return True
+
+
+async def _library_visible(
+    db: AsyncDatabase, user: dict, library_id: str
+) -> bool:
+    service = QuestionLibraryService(db)
+    oid = _object_id_or_none(library_id)
+    if oid is None:
+        return False
+    try:
+        await service.get_library(ObjectId(user["id"]), oid)
+    except Exception:
+        return False
+    return True
+
+
+@router.get("/questions", response_class=HTMLResponse)
+async def questions_page(
+    request: Request,
+    user_id: OptionalCurrentUserIdDep,
+    db: DatabaseDep,
+):
+    user = await _page_user(db, user_id)
+    if user is None:
+        return _login_redirect(request)
+    return templates.TemplateResponse(
+        request=request,
+        name="questions.html",
+        context=_ctx(request, title="题目库", user=user),
+    )
+
+
+@router.get("/questions/{question_id}", response_class=HTMLResponse)
+async def question_detail_page(
+    request: Request,
+    question_id: str,
+    user_id: OptionalCurrentUserIdDep,
+    db: DatabaseDep,
+):
+    user = await _page_user(db, user_id)
+    if user is None:
+        return _login_redirect(request)
+    if not await _question_visible(db, user, question_id):
+        return _error_page(
+            request,
+            user,
+            title="题目不存在",
+            message="题目可能已被删除，或者没有共享给你。",
+        )
+    return templates.TemplateResponse(
+        request=request,
+        name="question_detail.html",
+        context=_ctx(
+            request, title="题目详情", user=user, question_id=question_id
+        ),
+    )
+
+
+@router.get("/questions/{question_id}/stats", response_class=HTMLResponse)
+async def question_stats_page(
+    request: Request,
+    question_id: str,
+    user_id: OptionalCurrentUserIdDep,
+    db: DatabaseDep,
+):
+    user = await _page_user(db, user_id)
+    if user is None:
+        return _login_redirect(request)
+    if not await _question_visible(db, user, question_id):
+        return _error_page(
+            request,
+            user,
+            title="题目不存在",
+            message="题目可能已被删除，或者没有共享给你。",
+        )
+    return templates.TemplateResponse(
+        request=request,
+        name="question_stats.html",
+        context=_ctx(
+            request, title="跨问卷统计", user=user, question_id=question_id
+        ),
+    )
+
+
+@router.get("/libraries", response_class=HTMLResponse)
+async def libraries_page(
+    request: Request,
+    user_id: OptionalCurrentUserIdDep,
+    db: DatabaseDep,
+):
+    user = await _page_user(db, user_id)
+    if user is None:
+        return _login_redirect(request)
+    return templates.TemplateResponse(
+        request=request,
+        name="libraries.html",
+        context=_ctx(request, title="题库", user=user),
+    )
+
+
+@router.get("/libraries/{library_id}", response_class=HTMLResponse)
+async def library_detail_page(
+    request: Request,
+    library_id: str,
+    user_id: OptionalCurrentUserIdDep,
+    db: DatabaseDep,
+):
+    user = await _page_user(db, user_id)
+    if user is None:
+        return _login_redirect(request)
+    if not await _library_visible(db, user, library_id):
+        return _error_page(
+            request,
+            user,
+            title="题库不存在",
+            message="题库可能已被删除，或者不是公开题库。",
+        )
+    return templates.TemplateResponse(
+        request=request,
+        name="library_detail.html",
+        context=_ctx(
+            request, title="题库详情", user=user, library_id=library_id
         ),
     )
 

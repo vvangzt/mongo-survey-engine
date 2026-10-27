@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow"><a href="/libraries">题库</a> / 详情</div>
+        <h1 id="libraryName">加载中…</h1>
+        <p class="muted" id="libraryMeta"></p>
+      </div>
+      <button class="btn ghost danger" id="deleteButton" type="button">删除题库</button>
+    </div>
+
+    <div class="card qv-panel">
+      <h2>从我的题目中加入</h2>
+      <p class="muted">题库引用题目本身，所以题目升级版本后，题库里取到的就是最新版本。</p>
+      <div class="qv-inline">
+        <select id="questionSelect"></select>
+        <input id="itemNote" maxlength="500" placeholder="备注（可选）">
+        <button class="btn" id="addButton" type="button">加入题库</button>
+      </div>
+      <div class="form-error hidden" id="addError" role="alert"></div>
+    </div>
+
+    <section class="card">
+      <h2>题库内容</h2>
+      <div id="itemList" class="qv-items"></div>
+      <div id="itemEmpty" class="empty hidden">
+        <p>题库还是空的。先从上面的下拉框里挑一道题吧。</p>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/library_detail.js" defer></script>
+{% endblock %}

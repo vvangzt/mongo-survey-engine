@@ -1,0 +1,9 @@
+{
+  "_id": "66f2b3c4d5e6f7a8b9c0d1e5",
+  "schema_version": 1,
+  "entity_id": "66f2b3c4d5e6f7a8b9c0d1e2",
+  "grantee_id": "651f1c2a9b3e4d5f6a7b8c9e",
+  "permission": "use",
+  "granted_by": "651f1c2a9b3e4d5f6a7b8c9d",
+  "created_at": "2026-10-21T02:15:00Z"
+}

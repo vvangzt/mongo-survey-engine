@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/questions.schema.json",
+  "title": "questions collection document",
+  "description": "Mutable cross-survey identity of one question. The document is only the stable handle: content lives in immutable question_versions documents, and latest_version_id points at the newest one. Semantic invariants (checked by the service): latest_version_id belongs to this entity; latest_version_no and version_count match the version history; root_entity_id is the start of the fork lineage; a question referenced by any published survey version may only be soft-deleted. Visibility private means owner only, shared adds explicit question_shares grants, and public is usable by any signed-in user.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "owner_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Owner; only the owner may edit, share or delete the question."
+    },
+    "root_entity_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Lineage root (itself, or the start of the fork chain), used to query the whole family of questions."
+    },
+    "source_entity_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ObjectId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Question this one was forked from; null for an original question."
+    },
+    "source_version_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ObjectId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Source version the fork was based on; null when there is no source."
+    },
+    "lineage_depth": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Fork generation; 0 for an original question."
+    },
+    "type": {
+      "enum": [
+        "single_choice",
+        "multi_choice",
+        "text",
+        "number"
+      ],
+      "description": "Redundant copy of the latest version's type so that list filtering does not need to read versions."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Redundant copy of the latest version's title, kept in sync when a new version is created."
+    },
+    "visibility": {
+      "enum": [
+        "private",
+        "shared",
+        "public"
+      ],
+      "description": "private is owner-only; shared also grants the users listed in question_shares; public is usable by any signed-in user."
+    },
+    "latest_version_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Pointer to the newest question_versions document."
+    },
+    "latest_version_no": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Redundant latest version number, used for sorting and display."
+    },
+    "version_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Total number of versions; equal to latest_version_no in normal operation."
+    },
+    "deleted_at": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/UtcDateTime"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Soft-delete marker; published references and responses keep the question readable."
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "owner_id",
+    "root_entity_id",
+    "source_entity_id",
+    "source_version_id",
+    "lineage_depth",
+    "type",
+    "title",
+    "visibility",
+    "latest_version_id",
+    "latest_version_no",
+    "version_count",
+    "deleted_at",
+    "created_at",
+    "updated_at"
+  ]
+}

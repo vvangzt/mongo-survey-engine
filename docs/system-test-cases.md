@@ -40,12 +40,16 @@ python -m pytest tests/test_system_integration.py -v
 python -m pytest -v
 ```
 
-本次执行结果：
+本次执行结果（2026-10-27 复核）：
 
 ```text
 tests/test_system_integration.py .......... 24 passed
-全部测试 ................................... 64 passed
+阶段一全部测试 ............................. 64 passed
+第二阶段专项测试 ........................... 66 passed
+全部测试 ................................... 130 passed（1 条第三方弃用告警）
 ```
+
+第二阶段的需求级用例和自动化测试分布见本文第二部分。
 
 ---
 
@@ -204,11 +208,121 @@ tests/test_system_integration.py::test_new_version_clone_publish_and_response_pr
 24 passed
 ```
 
-全量测试（含校验引擎、聚合映射和已有 API 测试）：
+全量测试（含校验引擎、聚合映射、已有 API 测试和第二阶段专项测试）：
 
 ```text
-64 passed, 1 warning
+130 passed, 1 warning
 ```
 
 > 说明：分页测试只验证分页元数据和当前页数量，不断言文本顺序；文本页按
 > `submitted_at DESC, _id DESC` 稳定排序。
+
+---
+
+# 第二部分：需求变更相关测试用例（第二阶段）
+
+## 0. 第二阶段测试总览
+
+第二阶段共 7 个测试文件、66 个自动化用例；加上第一阶段未改动的 64 个用例，全量为 130 个。A–G 各节共 54 条需求级场景，每条场景给出步骤、输入、预期输出和实际结果，自动化用例负责可重复执行。
+
+| 测试文件 | 用例数 | 覆盖 |
+|---|---:|---|
+| `test_questions.py` | 14 | 内容哈希、版本链、选项继承、模型校验 |
+| `test_questions_api.py` | 16 | 题目 CRUD、版本、恢复、fork、共享、删除保护、快照校验 |
+| `test_library_api.py` | 10 | 题库 CRUD、条目幂等、权限 |
+| `test_cross_survey_stats.py` | 7 | 跨问卷数字/选项/文本、版本筛选、权限、旧数据不计入 |
+| `test_migration.py` | 6 | 迁移内容不变、幂等、dry-run、回填、校验、坏数据跳过 |
+| `test_phase2_compatibility.py` | 5 | 旧文档、旧请求体、混合问卷、无引用答卷 |
+| `test_question_pages.py` | 8 | 五个新页面、编辑器入口、静态资源、登录拦截 |
+| **合计** | **66** | 第一阶段 64 + 第二阶段 66 = **130 passed** |
+
+下表与 `tests/` 中的自动化用例一一对应，可直接按“步骤 / 输入 / 预期输出 / 实际结果”复核。
+
+## A. 题目库（需求 1、3、4、5）
+
+| 编号 | 用例 | 步骤 | 输入 | 预期输出 | 实际结果 |
+|---|---|---|---|---|---|
+| Q-01 | 创建题目 | 登录后 `POST /api/questions` | number 题“年龄（周岁）”，0–120，必答 | 201；`latest_version_no=1`；`content_hash` 为 64 位 | 通过 |
+| Q-02 | 读回题目 | `GET /api/questions/{id}` | 上一步的 id | 200；标题、题型、1 个版本、`usage_count=0` | 通过 |
+| Q-03 | 改题生成新版本 | `POST /api/questions/{id}/versions`，只改标题 | 新标题 | 201；`version_no=2`；`parent_version_id` = v1 | 通过 |
+| Q-04 | 旧版本不可变 | `GET /api/questions/{id}/versions` | — | 返回 v1、v2；v1 标题仍是旧标题 | 通过 |
+| Q-05 | 选项 ID 继承 | v1 为“男/女”，新增 v2 为“女/男/其他”（带原 ID） | 三选项 | 男、女保持原 `option_id`，“其他”为新 ID | 通过 |
+| Q-06 | 未知选项 ID 按 label 继承 | v2 提交临时 ID + 原 label | `o_tmp_*` | 按 label 复用旧 `option_id` | 通过 |
+| Q-07 | 恢复旧版本 | `POST /api/questions/{id}/versions/1/restore` | — | 生成 v3，`restored_from_version_id` = v1，内容与 v1 相同 | 通过 |
+| Q-08 | 派生新题 | `POST /api/questions/{id}/fork` | `{"title":"派生题目"}` | 201；新实体；`lineage_depth` = 1；来源记录 | 通过 |
+| Q-09 | 改题型被拒绝 | `POST /versions` 把 number 改成 single_choice | 不同题型 | 422，提示需要 fork | 通过 |
+
+## B. 共享与权限（需求 2、6）
+
+| 编号 | 用例 | 步骤 | 输入 | 预期输出 | 实际结果 |
+|---|---|---|---|---|---|
+| S-01 | 共享题目 | A 把题目共享给 B，`permission=use` | B 的用户名 | 201；B 可 `GET` 该题，`is_owner=false` | 通过 |
+| S-02 | 被共享者不能改题 | B `POST /versions` | 新内容 | 404（不泄露存在性） | 通过 |
+| S-03 | 共享列表 | B `GET /api/questions?scope=shared` | — | 包含该题 | 通过 |
+| S-04 | 撤销共享 | A `DELETE /shares/{B}` | — | 204；B 再 `GET` 返回 404 | 通过 |
+| S-05 | 私有题目对外不可见 | B `GET /api/questions/{A 的题}` | — | 404；`scope=usable` 不含它 | 通过 |
+| S-06 | 公开题目全站可用 | A 建 `visibility=public` | — | B 可见且出现在 `scope=public` | 通过 |
+| S-07 | 反向查询使用方 | 把题插进问卷并发布后 `GET /usages` | — | 返回问卷标题、版本、实例 ID、`is_published=true` | 通过 |
+
+## C. 题库（需求 7）
+
+| 编号 | 用例 | 步骤 | 输入 | 预期输出 | 实际结果 |
+|---|---|---|---|---|---|
+| L-01 | 建题库 | `POST /api/libraries` | 名称“课程通用题目” | 201；`item_count=0` | 通过 |
+| L-02 | 重名被拒 | 再建同名题库 | 同名 | 409 | 通过 |
+| L-03 | 加入题目 | `POST /libraries/{id}/items` | 题目 id + 备注 + tags | 201；题库详情含该条 | 通过 |
+| L-04 | 重复加入幂等 | 同上再执行一次 | 同一题目 | 201；题库里仍只有 1 条 | 通过 |
+| L-05 | 移出题目 | `DELETE /items/{entity_id}` | — | 204；条目为空；题目本身仍在 | 通过 |
+| L-06 | 删题库不删题 | `DELETE /libraries/{id}` | — | 204；`GET /api/questions/{id}` 仍 200 | 通过 |
+| L-07 | 私有题库隐藏 | B 访问 A 的私有题库 | — | 404 | 通过 |
+| L-08 | 公开题库只读 | B 访问公开题库并尝试加条目 | — | 读 200；写 404 | 通过 |
+| L-09 | 只能收录可见题 | B 往自己的题库加 A 的私有题 | — | 404 | 通过 |
+
+## D. 问卷侧引用与校验（需求 3、5）
+
+| 编号 | 用例 | 步骤 | 输入 | 预期输出 | 实际结果 |
+|---|---|---|---|---|---|
+| V-01 | 从题库插入 | `POST /surveys/{id}/questions/from-library` | 题目版本 id | 201；题目带 `question_ref`；实例 ID 为 `q_lib_*` | 通过 |
+| V-02 | 同题重复插入被拒 | 再插入同一题目 | — | 409 | 通过 |
+| V-03 | 快照被篡改拒绝保存 | 改 `PUT /draft` 里该题的 `validation` | 改过内容 | 422，提示“content no longer matches” | 通过 |
+| V-04 | 升级到最新版本 | 新建题目 v2 后 `POST .../refresh` | — | 200；草稿题目变为 v2 内容，实例 ID 不变 | 通过 |
+| V-05 | 被已发布问卷引用不可删 | 发布后 `DELETE /api/questions/{id}` | — | 409 | 通过 |
+| V-06 | 未使用题目可软删 | `DELETE` 未引用的题目 | — | 204；再 `GET` 404 | 通过 |
+
+## E. 跨问卷统计（需求 8）
+
+| 编号 | 用例 | 步骤 | 输入 | 预期输出 | 实际结果 |
+|---|---|---|---|---|---|
+| C-01 | 两问卷数字统计 | 同一题插进两份问卷，分别提交 20/30 与 40 | 3 份答卷 | `answered_count=3`、`survey_count=2`、均值 30、min 20、max 40 | 通过 |
+| C-02 | 版本筛选 | 分别用 v1、v2 建问卷并作答 | `version=all/latest/1` | all=2、latest=1（均值 50）、1=1（均值 20） | 通过 |
+| C-03 | 选项按 ID 合并 | v1 男/女，v2 增“其他”，三份答卷 | — | 男 1、女 1、其他 1；`option_set_mismatch=true`；“其他”的 `versions=[2]` | 通过 |
+| C-04 | 单版本不含 mismatch | `version=1` | — | 只有男/女两行，`option_set_mismatch=false` | 通过 |
+| C-05 | 文本分页 | 文本题两份问卷各 1 条 | `page_size=1` | `total=2`、`total_pages=2`，两页内容不同且带问卷标题 | 通过 |
+| C-06 | 按问卷过滤 | `?survey_id={问卷一}` | — | `answered_count=1`、`average=20` | 通过 |
+| C-07 | 无权访问 | 他人 `GET /stats` | — | 404 | 通过 |
+| C-08 | 旧数据不计入 | 手写题目（无引用）的问卷答卷 | — | 该题跨问卷统计为 0 | 通过 |
+
+## F. 迁移与兼容
+
+| 编号 | 用例 | 步骤 | 输入 | 预期输出 | 实际结果 |
+|---|---|---|---|---|---|
+| M-01 | 迁移补引用 | 对第一阶段形态数据执行迁移 | 2 个版本 × 3 题 | 创建 6 个实体；内嵌内容逐字段不变 | 通过 |
+| M-02 | 迁移幂等 | 连续执行两次 | — | 第二次 `created=0`、`already_migrated=6` | 通过 |
+| M-03 | dry-run 不落库 | `--dry-run` | — | 报告 6，但集合里 0 条 | 通过 |
+| M-04 | 回填答卷引用 | 迁移后跑回填 | 2 份答卷 | 更新 2 份、3 条答案、无未映射 | 通过 |
+| M-05 | 迁移校验 | `verify_migration.py` | — | 27 项断言、0 失败 | 通过 |
+| M-06 | 坏数据跳过不删除 | 造一个无法解析的旧题目后迁移 | 空 options | `skipped=1`；该题原样保留、无引用 | 通过 |
+| M-07 | 篡改能被发现 | 迁移后改某题标题 | — | 校验报“snapshot content differs” | 通过 |
+| M-08 | 第一阶段请求体 | 用旧格式 `PUT /draft`（不含 `question_ref`） | — | 200，行为不变 | 通过 |
+| M-09 | 混合问卷 | 同一份问卷里既有题库题也有手写题 | — | 发布与提交正常；只有题库题进跨问卷统计 | 通过 |
+| M-10 | 无引用答卷可统计 | 直接插入第一阶段形态的答卷 | 无 `question_ref` | 单卷统计正常（`response_count=1`、均值 50） | 通过 |
+
+## G. 页面与静态资源
+
+| 编号 | 用例 | 步骤 | 预期输出 | 实际结果 |
+|---|---|---|---|---|
+| P-01 | 五个新页面渲染 | 依次访问 `/questions`、`/questions/{id}`、`/questions/{id}/stats`、`/libraries`、`/libraries/{id}` | 200，关键文案存在 | 通过 |
+| P-02 | 编辑器入口 | `/surveys/{id}/edit` | 含“从题库插入”与 `editor_library.js` | 通过 |
+| P-03 | 未登录拦截 | 匿名访问 `/questions`、`/libraries` | 303 跳转 `/login?next=...` | 通过 |
+| P-04 | 静态资源 | 请求 7 个新 JS 文件 | 200，`application/javascript` | 通过 |
+| P-05 | 他人题目页面 | 访问他人私有题目详情页 | 404 且显示“题目不存在” | 通过 |

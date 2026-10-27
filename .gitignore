@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+pytest-cache-files-*/
+.tmp/
 .coverage
 htmlcov/
 data/
@@ -11,3 +13,4 @@ Thumbs.db
 node_modules/
 submission/
 大作业一第一阶段.pdf
+/2026_ECNU_PJ1_*.pdf

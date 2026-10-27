@@ -20,6 +20,8 @@ from pymongo.asynchronous.mongo_client import AsyncMongoClient
 from .auth.router import router as auth_router
 from .config import get_settings
 from .database import create_indexes
+from .questions.library_router import router as libraries_router
+from .questions.router import router as questions_router
 from .stats.router import router as stats_router
 from .surveys.public_router import router as public_surveys_router
 from .surveys.router import router as surveys_router
@@ -51,6 +53,8 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(auth_router)
 app.include_router(stats_router)
+app.include_router(questions_router)
+app.include_router(libraries_router)
 app.include_router(surveys_router)
 app.include_router(public_surveys_router)
 app.include_router(web_router)

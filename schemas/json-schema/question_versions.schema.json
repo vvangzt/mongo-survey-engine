@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/question_versions.schema.json",
+  "title": "question_versions collection document",
+  "description": "Immutable content snapshot of one question. There is no code path that updates an existing document: editing a question inserts a new version with version_no + 1 and points parent_version_id at the previous one (v1 -> v2 -> v3). content is the versioned part only and deliberately excludes question_id (an instance id inside one survey version) and logic (jump rules depend on the survey position). content_hash is the SHA-256 of the canonical content and is checked by the service before insert.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "entity_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Owning questions document."
+    },
+    "version_no": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version number starting at 1 and increasing by one; unique per entity."
+    },
+    "parent_version_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ObjectId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Previous version; null for v1, required for every later version."
+    },
+    "restored_from_version_id": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ObjectId"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Old version this content was restored from, when the edit was a restore operation."
+    },
+    "content": {
+      "$ref": "#/$defs/QuestionContent"
+    },
+    "content_hash": {
+      "$ref": "common.schema.json#/$defs/ContentHash",
+      "description": "SHA-256 over the canonical JSON of content; must match the stored content."
+    },
+    "created_by": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    },
+    "legacy_key": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Migration idempotency key \"{survey_version_id}:{question_id}\"; unique when present, null for native phase-2 versions."
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "entity_id",
+    "version_no",
+    "parent_version_id",
+    "restored_from_version_id",
+    "content",
+    "content_hash",
+    "created_by",
+    "created_at",
+    "legacy_key"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "version_no": {
+            "const": 1
+          }
+        },
+        "required": [
+          "version_no"
+        ]
+      },
+      "then": {
+        "properties": {
+          "parent_version_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "version_no": {
+            "minimum": 2
+          }
+        },
+        "required": [
+          "version_no"
+        ]
+      },
+      "then": {
+        "properties": {
+          "parent_version_id": {
+            "$ref": "common.schema.json#/$defs/ObjectId"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "QuestionContentBase": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title",
+        "required"
+      ]
+    },
+    "SingleChoiceContent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionContentBase"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "single_choice"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 100,
+          "items": {
+            "$ref": "common.schema.json#/$defs/Option"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "options"
+      ],
+      "unevaluatedProperties": false
+    },
+    "MultiChoiceContent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionContentBase"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "multi_choice"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 100,
+          "items": {
+            "$ref": "common.schema.json#/$defs/Option"
+          }
+        },
+        "validation": {
+          "$ref": "common.schema.json#/$defs/MultiChoiceValidation"
+        }
+      },
+      "required": [
+        "type",
+        "options",
+        "validation"
+      ],
+      "unevaluatedProperties": false
+    },
+    "TextContent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionContentBase"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "text"
+        },
+        "validation": {
+          "$ref": "common.schema.json#/$defs/TextValidation"
+        }
+      },
+      "required": [
+        "type",
+        "validation"
+      ],
+      "unevaluatedProperties": false
+    },
+    "NumberContent": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/QuestionContentBase"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "number"
+        },
+        "validation": {
+          "$ref": "common.schema.json#/$defs/NumberValidation"
+        }
+      },
+      "required": [
+        "type",
+        "validation"
+      ],
+      "unevaluatedProperties": false
+    },
+    "QuestionContent": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SingleChoiceContent"
+        },
+        {
+          "$ref": "#/$defs/MultiChoiceContent"
+        },
+        {
+          "$ref": "#/$defs/TextContent"
+        },
+        {
+          "$ref": "#/$defs/NumberContent"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">Question Library</div>
+        <h1>题目库</h1>
+        <p class="muted">把常用题目保存下来，做新问卷时直接选用；改题只会生成新版本，不影响已发布问卷。</p>
+      </div>
+      <button class="btn" id="openCreate" type="button">新建题目</button>
+    </div>
+
+    <div class="card qv-panel hidden" id="createPanel">
+      <div class="page-head compact">
+        <div>
+          <h2>新建题目</h2>
+          <p class="muted">题目保存后会拥有独立的身份，可以在任意问卷里重复使用。</p>
+        </div>
+      </div>
+      <form id="createForm">
+        <div id="questionForm"></div>
+        <div class="form-error hidden" id="createError" role="alert"></div>
+        <div class="qv-actions">
+          <button class="btn secondary" type="button" id="cancelCreate">取消</button>
+          <button class="btn" type="submit" id="createButton">保存题目</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card qv-toolbar">
+      <select id="scopeFilter" aria-label="题目范围">
+        <option value="usable">我的 + 共享 + 公开</option>
+        <option value="mine">我创建的</option>
+        <option value="shared">共享给我的</option>
+        <option value="library">题库里的</option>
+        <option value="public">公开题目</option>
+      </select>
+      <select id="typeFilter" aria-label="题型">
+        <option value="">全部题型</option>
+        <option value="single_choice">单选题</option>
+        <option value="multi_choice">多选题</option>
+        <option value="text">文本题</option>
+        <option value="number">数字题</option>
+      </select>
+      <input id="searchInput" maxlength="200" placeholder="按标题搜索">
+      <span class="muted" id="listCount"></span>
+    </div>
+
+    <div id="questionList" class="grid survey-grid"></div>
+    <div id="questionEmpty" class="card empty hidden">
+      <div class="empty-mark">题</div>
+      <h2>还没有题目</h2>
+      <p>新建一道常用题，例如“你的年龄”，之后就能在每份问卷里直接选用。</p>
+      <button class="btn" id="emptyCreate" type="button">新建题目</button>
+    </div>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/question_form.js" defer></script>
+<script src="/static/js/questions.js" defer></script>
+{% endblock %}

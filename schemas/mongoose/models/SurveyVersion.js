@@ -13,6 +13,7 @@ const {
   RULE_ID_RE,
   validateSurveyVersionSemantics,
 } = require('./validation');
+const { questionRefSchema } = require('./questionRef');
 
 const optionSchema = new Schema(
   {
@@ -240,6 +241,10 @@ const questionBaseSchema = new Schema(
       type: jumpLogicSchema,
       default: undefined,
     },
+    question_ref: {
+      type: questionRefSchema,
+      default: undefined,
+    },
   },
   {
     _id: false,
@@ -331,7 +336,7 @@ const surveyVersionSchema = new Schema(
     content_schema_version: {
       type: Number,
       required: true,
-      enum: [1],
+      enum: [1, 2],
       default: 1,
     },
     revision: {

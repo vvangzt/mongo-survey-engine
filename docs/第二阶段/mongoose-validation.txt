@@ -1,0 +1,17 @@
+﻿OK   all Mongoose example documents validated
+OK   question discriminators: single_choice, multi_choice, text, number, text, single_choice
+OK   answer discriminators: single_choice, multi_choice, text, number, text, single_choice
+OK   stat discriminators: single_choice, multi_choice, text, number, text, single_choice
+OK   rejected backward jump: r_rating_high_04: goto targets must point forward (cycles are forbidden)
+OK   rejected condition with unknown option: q_role_0001: eq requires an existing option_id
+OK   rejected anonymous response with identity: anonymous responses must not carry respondent_id
+OK   content hash matches the Python implementation
+OK   survey version question_ref: q_age_0001, q_gender_0002
+OK   response answer refs: 2
+OK   rejected question version with a stale content_hash: content_hash does not match the version content (2041d6b84ca96264e0914d4db9967c24e3deb84af8a685feff9fe209b8ad381c)
+OK   rejected first question version with a parent: the first version cannot have a parent
+OK   rejected later question version without a parent: a later version requires parent_version_id
+OK   rejected share granted to the owner: the owner does not need a share record
+OK   rejected unknown question visibility: Question validation failed: visibility: `everyone` is not a valid enum value for path `visibility`.
+
+Mongoose schema checks passed

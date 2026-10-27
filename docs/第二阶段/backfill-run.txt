@@ -1,0 +1,9 @@
+﻿database: survey_phase2_demo
+survey_versions scanned : 2
+versions with refs      : 2
+responses scanned       : 2
+responses updated       : 2
+answers updated         : 3
+answers without mapping : 0
+
+backfill completed

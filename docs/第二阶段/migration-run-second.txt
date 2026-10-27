@@ -1,0 +1,10 @@
+﻿database: survey_phase2_demo
+survey_versions scanned : 2
+embedded questions seen: 6
+already had a ref      : 6
+entities created       : 0
+reused (partial rerun) : 0
+skipped (unparsable)   : 0
+refs written           : 0
+
+migration completed

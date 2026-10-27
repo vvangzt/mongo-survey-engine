@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow"><a href="/questions">题目库</a> / 跨问卷统计</div>
+        <h1 id="statsTitle">加载中…</h1>
+        <p class="muted">同一道题在所有问卷里的作答情况；只统计作答侧指标，不虚构“未作答率”。</p>
+      </div>
+      <div class="qv-inline">
+        <select id="versionSelect">
+          <option value="all">全部版本</option>
+          <option value="latest">仅最新版本</option>
+        </select>
+        <button class="btn secondary" id="refreshButton" type="button">刷新</button>
+      </div>
+    </div>
+
+    <div class="summary-grid" id="metricGrid"></div>
+
+    <section class="card">
+      <h2>各版本分布</h2>
+      <div id="versionBreakdown" class="qv-versions"></div>
+    </section>
+
+    <section class="card">
+      <h2>选项频次</h2>
+      <p class="muted" id="optionHint"></p>
+      <div id="optionChart" class="qv-bars"></div>
+    </section>
+
+    <section class="card" id="textSection">
+      <h2>文本回答</h2>
+      <div id="textAnswers" class="qv-texts"></div>
+      <div class="qv-actions">
+        <button class="btn secondary" id="prevPage" type="button">上一页</button>
+        <span class="muted" id="pageLabel"></span>
+        <button class="btn secondary" id="nextPage" type="button">下一页</button>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/question_stats.js" defer></script>
+{% endblock %}

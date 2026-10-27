@@ -1,0 +1,18 @@
+{
+  "_id": "66f2b3c4d5e6f7a8b9c0d1e2",
+  "schema_version": 1,
+  "owner_id": "651f1c2a9b3e4d5f6a7b8c9d",
+  "root_entity_id": "66f2b3c4d5e6f7a8b9c0d1e2",
+  "source_entity_id": null,
+  "source_version_id": null,
+  "lineage_depth": 0,
+  "type": "number",
+  "title": "年龄（周岁）",
+  "visibility": "shared",
+  "latest_version_id": "66f2b3c4d5e6f7a8b9c0d1e4",
+  "latest_version_no": 2,
+  "version_count": 2,
+  "deleted_at": null,
+  "created_at": "2026-10-02T08:00:00Z",
+  "updated_at": "2026-10-20T09:30:00Z"
+}

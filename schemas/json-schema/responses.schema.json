@@ -41,7 +41,8 @@
       "maxItems": 300,
       "items": {
         "$ref": "common.schema.json#/$defs/Answer"
-      }
+      },
+      "description": "One answer per answered question. Each answer may additionally carry an optional question_ref = { entity_id, version_id } identifying the library version it was given for; the server writes it from the pinned survey version and clients never supply it."
     },
     "submitted_at": {
       "$ref": "common.schema.json#/$defs/UtcDateTime",

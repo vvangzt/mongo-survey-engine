@@ -1,0 +1,10 @@
+﻿database: survey_phase2_demo
+[dry-run] survey_versions scanned : 2
+[dry-run] embedded questions seen: 6
+[dry-run] already had a ref      : 0
+[dry-run] entities created       : 6
+[dry-run] reused (partial rerun) : 0
+[dry-run] skipped (unparsable)   : 0
+[dry-run] refs written           : 6
+
+migration completed

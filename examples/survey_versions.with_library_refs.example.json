@@ -1,0 +1,97 @@
+{
+  "_id": "66f2b3c4d5e6f7a8b9c0d1d0",
+  "schema_version": 1,
+  "survey_id": "66f0a1b2c3d4e5f6a7b8c9d0",
+  "version_no": 2,
+  "state": "draft",
+  "content_schema_version": 2,
+  "revision": 3,
+  "questions": [
+    {
+      "question_id": "q_age_0001",
+      "type": "number",
+      "title": "年龄（周岁）",
+      "description": "用于跨问卷的年龄分布统计",
+      "required": true,
+      "validation": {
+        "integer": true,
+        "min": 0,
+        "max": 120
+      },
+      "logic": {
+        "fallback": {
+          "action": "next"
+        },
+        "rules": []
+      },
+      "question_ref": {
+        "entity_id": "66f2b3c4d5e6f7a8b9c0d1e2",
+        "version_id": "66f2b3c4d5e6f7a8b9c0d1e4"
+      }
+    },
+    {
+      "question_id": "q_gender_0002",
+      "type": "single_choice",
+      "title": "你的性别",
+      "required": false,
+      "options": [
+        {
+          "option_id": "o_male_000001",
+          "label": "男"
+        },
+        {
+          "option_id": "o_female_0001",
+          "label": "女"
+        },
+        {
+          "option_id": "o_other_00001",
+          "label": "其他"
+        }
+      ],
+      "question_ref": {
+        "entity_id": "66f2b3c4d5e6f7a8b9c0d1e6",
+        "version_id": "66f2b3c4d5e6f7a8b9c0d1e7"
+      }
+    },
+    {
+      "question_id": "q_grade_0003",
+      "type": "multi_choice",
+      "title": "你使用过哪些课程资源？",
+      "required": false,
+      "options": [
+        {
+          "option_id": "o_slides_0001",
+          "label": "课件"
+        },
+        {
+          "option_id": "o_videos_0001",
+          "label": "录播视频"
+        },
+        {
+          "option_id": "o_lab_0000001",
+          "label": "实验环境"
+        }
+      ],
+      "validation": {
+        "min_selected": 1,
+        "max_selected": 3
+      }
+    },
+    {
+      "question_id": "q_comment_0004",
+      "type": "text",
+      "title": "补充建议",
+      "required": false,
+      "validation": {
+        "min_length": 0,
+        "max_length": 500,
+        "trim": true
+      }
+    }
+  ],
+  "created_by": "651f1c2a9b3e4d5f6a7b8c9d",
+  "created_at": "2026-10-22T01:00:00Z",
+  "updated_at": "2026-10-25T03:20:00Z",
+  "published_at": null,
+  "content_hash": null
+}

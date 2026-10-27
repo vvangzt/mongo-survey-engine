@@ -27,8 +27,11 @@
     },
     "content_schema_version": {
       "type": "integer",
-      "const": 1,
-      "description": "Version of the question/logic DSL. Bump only for a semantic change; old version documents keep their old value."
+      "enum": [
+        1,
+        2
+      ],
+      "description": "Version of the question/logic DSL. Version 2 adds the optional question_ref on embedded questions; version 1 documents keep their old value."
     },
     "revision": {
       "type": "integer",
@@ -41,7 +44,8 @@
       "maxItems": 300,
       "items": {
         "$ref": "common.schema.json#/$defs/Question"
-      }
+      },
+      "description": "Frozen question snapshots. Each question may additionally carry an optional question_ref = { entity_id, version_id } pointing at its shared library identity; the full inline content remains the source for rendering, validation and single-survey statistics, and must hash-match the referenced question_versions document."
     },
     "created_by": {
       "$ref": "common.schema.json#/$defs/ObjectId"

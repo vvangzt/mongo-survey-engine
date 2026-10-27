@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/question_library_items.schema.json",
+  "title": "question_library_items collection document",
+  "description": "Membership of one question entity in one question bank. The item references the entity rather than a version, so the bank always resolves to the latest version. Semantic invariants (checked by the service): (library_id, entity_id) is unique, so a bank lists a question at most once; only the bank owner or a user with use permission may add items; note and tags are private annotations of the bank.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "library_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Containing question_libraries document."
+    },
+    "entity_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Referenced questions document; the bank always shows its latest version."
+    },
+    "added_by": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "added_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    },
+    "note": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 500
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional note about why this question is in the bank."
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32
+      },
+      "description": "Free-form labels; at most 10, each 1..32 characters, no duplicates."
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "library_id",
+    "entity_id",
+    "added_by",
+    "added_at",
+    "note",
+    "tags"
+  ]
+}

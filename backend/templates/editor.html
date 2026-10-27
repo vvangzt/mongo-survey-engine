@@ -56,6 +56,7 @@
           <button class="btn secondary small" type="button" data-add-type="multi_choice">＋ 多选题</button>
           <button class="btn secondary small" type="button" data-add-type="text">＋ 文本题</button>
           <button class="btn secondary small" type="button" data-add-type="number">＋ 数字题</button>
+          <button class="btn ghost small" type="button" id="libraryPickButton">＋ 从题库插入</button>
         </div>
       </section>
 
@@ -140,8 +141,40 @@
     </form>
   </div>
 </div>
+<div class="modal-backdrop hidden" id="libraryModal" role="dialog" aria-modal="true" aria-labelledby="libraryTitle">
+  <div class="modal wide">
+    <div class="modal-head">
+      <div>
+        <h2 id="libraryTitle">从题库插入题目</h2>
+        <p>插入的是“引用 + 快照”：之后改题只会生成新版本，这份问卷的当前版本保持不变。</p>
+      </div>
+      <button class="btn ghost small" type="button" data-close-library>关闭</button>
+    </div>
+    <div class="form-grid">
+      <div class="field span-2">
+        <label for="libraryScope">范围</label>
+        <select id="libraryScope">
+          <option value="library">题库里的题</option>
+          <option value="mine">我创建的</option>
+          <option value="shared">共享给我的</option>
+          <option value="public">公开题目</option>
+        </select>
+      </div>
+      <div class="field span-2">
+        <label for="libraryQuestionSelect">题目</label>
+        <select id="libraryQuestionSelect" size="8"></select>
+      </div>
+    </div>
+    <div class="form-error hidden" id="libraryError" role="alert"></div>
+    <div class="modal-foot">
+      <button class="btn secondary" type="button" data-close-library>取消</button>
+      <button class="btn" id="libraryInsertButton" type="button">插入到草稿</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>window.SURVEY_ID = {{ survey_id|tojson }};</script>
 <script src="/static/js/editor.js" defer></script>
+<script src="/static/js/editor_library.js" defer></script>
 {% endblock %}

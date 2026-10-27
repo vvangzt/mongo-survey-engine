@@ -13,6 +13,8 @@ from .auth.security import (
     decode_access_token,
     extract_access_token,
 )
+from .questions.service import QuestionLibraryService
+from .stats.cross import CrossSurveyStatsService
 from .stats.service import StatsService
 from .surveys.service import SurveyService
 
@@ -87,6 +89,18 @@ def get_survey_service(
     return SurveyService(db)
 
 
+def get_question_service(
+    db: Annotated[AsyncDatabase, Depends(get_db)],
+) -> QuestionLibraryService:
+    return QuestionLibraryService(db)
+
+
+def get_cross_stats_service(
+    db: Annotated[AsyncDatabase, Depends(get_db)],
+) -> CrossSurveyStatsService:
+    return CrossSurveyStatsService(db)
+
+
 DatabaseDep = Annotated[AsyncDatabase, Depends(get_db)]
 CurrentUserIdDep = Annotated[ObjectId, Depends(get_current_user_id)]
 OptionalCurrentUserIdDep = Annotated[
@@ -94,17 +108,27 @@ OptionalCurrentUserIdDep = Annotated[
 ]
 StatsServiceDep = Annotated[StatsService, Depends(get_stats_service)]
 SurveyServiceDep = Annotated[SurveyService, Depends(get_survey_service)]
+QuestionServiceDep = Annotated[
+    QuestionLibraryService, Depends(get_question_service)
+]
+CrossSurveyStatsDep = Annotated[
+    CrossSurveyStatsService, Depends(get_cross_stats_service)
+]
 
 
 __all__ = [
+    "CrossSurveyStatsDep",
     "CurrentUserIdDep",
     "DatabaseDep",
     "OptionalCurrentUserIdDep",
+    "QuestionServiceDep",
     "StatsServiceDep",
     "SurveyServiceDep",
+    "get_cross_stats_service",
     "get_current_user_id",
     "get_db",
     "get_optional_current_user_id",
+    "get_question_service",
     "get_stats_service",
     "get_survey_service",
 ]

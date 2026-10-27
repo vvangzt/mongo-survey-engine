@@ -1,0 +1,45 @@
+{
+  "_id": "66f2b3c4d5e6f7a8b9c0d200",
+  "schema_version": 1,
+  "survey_id": "66f0a1b2c3d4e5f6a7b8c9d0",
+  "survey_version_id": "66f2b3c4d5e6f7a8b9c0d1d0",
+  "respondent_id": "651f1c2a9b3e4d5f6a7b8c9e",
+  "is_anonymous": false,
+  "submission_token": "0f4a2c6e8b1d3f5a7c9e0b2d4f6a8c1e",
+  "answers": [
+    {
+      "question_id": "q_age_0001",
+      "question_ref": {
+        "entity_id": "66f2b3c4d5e6f7a8b9c0d1e2",
+        "version_id": "66f2b3c4d5e6f7a8b9c0d1e4"
+      },
+      "type": "number",
+      "number": 21
+    },
+    {
+      "question_id": "q_gender_0002",
+      "question_ref": {
+        "entity_id": "66f2b3c4d5e6f7a8b9c0d1e6",
+        "version_id": "66f2b3c4d5e6f7a8b9c0d1e7"
+      },
+      "type": "single_choice",
+      "option_ids": [
+        "o_female_0001"
+      ]
+    },
+    {
+      "question_id": "q_grade_0003",
+      "type": "multi_choice",
+      "option_ids": [
+        "o_slides_0001",
+        "o_lab_0000001"
+      ]
+    },
+    {
+      "question_id": "q_comment_0004",
+      "type": "text",
+      "text": "希望多讲一些索引和聚合管道的实战案例。"
+    }
+  ],
+  "submitted_at": "2026-10-25T03:25:00Z"
+}

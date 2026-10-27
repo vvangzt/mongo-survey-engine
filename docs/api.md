@@ -477,3 +477,165 @@ opens_at, closes_at, published_at, created_at, updated_at
 - `(survey_id, submission_token)` 唯一索引防止重试重复落库；
 - 发布版本推进为幂等操作，不依赖副本集事务；
 - 全部索引由 `python -m backend.init_db` 或启动时的 `AUTO_CREATE_INDEXES=true` 创建。
+
+---
+
+# 7. 题目库接口（第二阶段新增）
+
+## 7.1 先分清两个 `question_id`
+
+这是第二阶段最容易混淆的地方，接口文档必须显式说明：
+
+| 名字 | 类型 | 含义 | 出现位置 |
+|---|---|---|---|
+| `question_id` | 字符串 `q_xxx` | **问卷版本内部的实例 ID** | `survey_versions.questions[]`、`answers[]`、`/next`、提交、单卷统计 |
+| `question_ref.entity_id` | ObjectId | **题目实体 ID**，跨问卷稳定 | `/api/questions/{question_id}` 路径里的 `{question_id}` |
+| `question_ref.version_id` | ObjectId | 题目版本 ID | 版本相关接口 |
+| `version_no` | int | 题目版本号（问卷版本号是另一个同名字段） | |
+
+同一个逻辑题插入两份问卷，会在两份问卷里各有一个**不同的** `question_id`，
+但共享**同一个** `entity_id`。跨问卷统计、反向查询都基于 `entity_id`。
+
+## 7.2 题目接口
+
+所有接口要求登录；越权访问返回 **404**（不泄露存在性）。
+
+```http
+POST   /api/questions                      创建题目（同时生成 v1）
+GET    /api/questions?scope=&type=&q=&limit=
+GET    /api/questions/{question_id}
+POST   /api/questions/{question_id}/versions            改题 → 生成新版本
+GET    /api/questions/{question_id}/versions            版本历史 v1→v2→v3
+POST   /api/questions/{question_id}/versions/{no}/restore
+POST   /api/questions/{question_id}/fork                派生新题（记录来源）
+GET    /api/questions/{question_id}/usages              被哪些问卷使用
+POST   /api/questions/{question_id}/shares              共享
+GET    /api/questions/{question_id}/shares
+DELETE /api/questions/{question_id}/shares/{grantee_id}
+DELETE /api/questions/{question_id}                     软删除（被已发布问卷引用时 409）
+```
+
+创建题目：
+
+```json
+{
+  "content": {
+    "type": "number",
+    "title": "年龄（周岁）",
+    "description": "用于跨问卷的年龄分布统计",
+    "required": true,
+    "validation": { "integer": true, "min": 0, "max": 120 }
+  },
+  "visibility": "private"
+}
+```
+
+`content` 是判别联合，四种题型与问卷内题目**完全同构**（见 §5）。
+响应包含 `latest_version`、`versions`、`usage_count`、`shares`、`is_owner`、`can_edit`。
+
+`scope` 取值：`mine`（我创建的）、`shared`（共享给我）、`public`（公开）、
+`usable`（默认，三者并集）、`library`（我可见题库里的题）。
+
+改题：
+
+```http
+POST /api/questions/{id}/versions
+{ "content": { "type": "number", "title": "年龄（周岁，新口径）", "required": true,
+               "validation": { "integer": true, "min": 0, "max": 150 } } }
+```
+
+- 不允许改变题型（返回 422，需要 `fork`）；
+- 选项 `option_id` 按 `label` 从上一版本继承，保证跨版本统计可合并；
+- 旧版本内容不会被修改，已引用旧版本的问卷保持原样。
+
+共享：
+
+```http
+POST /api/questions/{id}/shares
+{ "grantee_username": "alice_01", "permission": "use" }
+```
+
+`permission`：`view`（只读）、`use`（可插入自己的问卷）。共享后题目 `visibility` 变为 `shared`。
+
+## 7.3 题库接口
+
+```http
+POST   /api/libraries                       建题库
+GET    /api/libraries?include_public=true   我的题库（可含公开题库）
+GET    /api/libraries/{library_id}          题库 + 条目
+PATCH  /api/libraries/{library_id}          改名 / 说明 / 可见性
+DELETE /api/libraries/{library_id}          删除题库（题目本身不受影响）
+POST   /api/libraries/{library_id}/items    加入题目（重复加入幂等）
+DELETE /api/libraries/{library_id}/items/{entity_id}
+```
+
+题库条目引用的是题目**实体**，所以题库里取到的永远是这道题的最新版本。
+
+## 7.4 问卷侧扩展（只加不改）
+
+```http
+POST /api/surveys/{id}/questions/from-library
+{ "question_version_id": "66f2...", "question_id": "q_lib_xxx（可选）", "logic": { ... } }
+
+POST /api/surveys/{id}/questions/{instance_question_id}/refresh
+```
+
+- 第一条把题库里的某个**版本**插入草稿：写入完整内容快照 + `question_ref`；
+- 第二条把草稿中的某题升级到该题的最新版本（仅草稿、仅题目所有者）；
+- 已有接口不变：`PUT /draft` 仍然接受第一阶段请求体，只是额外接受可选的 `question_ref`。
+
+保存草稿或发布时，服务端会校验：
+
+| 校验 | 失败返回 |
+|---|---|
+| 引用的题目版本存在 | 422 |
+| 快照内容哈希 == 所引版本的内容哈希（I2） | 422 `question content no longer matches ...` |
+| 同一问卷内不重复引用同一题目（I3） | 409 / 422 |
+| 题目类型与引用版本一致 | 422 |
+
+## 7.5 跨问卷统计
+
+```http
+GET /api/questions/{question_id}/stats?version=all|latest|<n>&survey_id=<optional>
+GET /api/questions/{question_id}/stats/answers?version=&page=&page_size=
+```
+
+响应（节选）：
+
+```json
+{
+  "entity_id": "66f2...",
+  "type": "single_choice",
+  "title": "你的身份是？",
+  "answered_count": 3,
+  "survey_count": 2,
+  "version_count": 2,
+  "versions": [{ "version_id": "...", "version_no": 1, "answered_count": 2 }],
+  "option_counts": [
+    { "option_id": "o_opt_00000000", "label": "男", "count": 1, "versions": [1, 2] }
+  ],
+  "option_set_mismatch": true,
+  "merged_by": "option_id",
+  "average": null, "minimum": null, "maximum": null,
+  "numeric_count": 0, "text_count": 0,
+  "generated_at": "..."
+}
+```
+
+口径说明（报告里也会写）：
+
+- **不提供“未作答率 / 覆盖率”**。跳转逻辑会导致某题根本没被展示，
+  而“没展示”和“跳过”在数据上不可区分，硬算会把跳转后的问卷算成大量未作答。
+  因此只报作答侧指标。
+- 默认按 `option_id` 合并各版本（依赖不变式 I6）；
+  涉及版本的选项集不一致时返回 `option_set_mismatch: true`，并在每个选项上标注
+  `versions`（该选项出现在哪些版本）。
+- 文本题的回答通过 `/stats/answers` 分页读取，`page_size` 最大 100。
+
+## 7.6 新增错误语义
+
+| 状态码 | 场景 |
+|---:|---|
+| 404 | 题目/题库不存在，或没有共享给你（不区分“不存在”与“无权”） |
+| 409 | 重复引用同一题目、被已发布问卷引用的题目不能删除、题库重名 |
+| 422 | 题型改变未 fork、快照与所引版本不一致、参数越界 |

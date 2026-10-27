@@ -1,0 +1,13 @@
+{
+  "_id": "66f2b3c4d5e6f7a8b9c0d1f1",
+  "schema_version": 1,
+  "library_id": "66f2b3c4d5e6f7a8b9c0d1f0",
+  "entity_id": "66f2b3c4d5e6f7a8b9c0d1e2",
+  "added_by": "651f1c2a9b3e4d5f6a7b8c9d",
+  "added_at": "2026-10-21T02:05:00Z",
+  "note": "跨问卷统计示例用它",
+  "tags": [
+    "人口学",
+    "数值"
+  ]
+}

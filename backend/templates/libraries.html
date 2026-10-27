@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">Question Banks</div>
+        <h1>题库</h1>
+        <p class="muted">把常用题目整理成题库，做问卷时直接从中挑选；题库里的题会始终指向该题的最新版本。</p>
+      </div>
+      <button class="btn" id="openCreate" type="button">新建题库</button>
+    </div>
+
+    <div class="card qv-panel hidden" id="createPanel">
+      <form id="createForm">
+        <div class="form-grid">
+          <div class="field span-2">
+            <label for="libraryName">题库名称</label>
+            <input id="libraryName" maxlength="120" required placeholder="例如：课程通用题目">
+          </div>
+          <div class="field span-2">
+            <label for="libraryDescription">说明</label>
+            <textarea id="libraryDescription" maxlength="1000" placeholder="这个题库收录什么题目？"></textarea>
+          </div>
+          <div class="field">
+            <label for="libraryVisibility">可见性</label>
+            <select id="libraryVisibility">
+              <option value="private">私有（只有我）</option>
+              <option value="public">公开（全站可浏览）</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-error hidden" id="createError" role="alert"></div>
+        <div class="qv-actions">
+          <button class="btn secondary" type="button" id="cancelCreate">取消</button>
+          <button class="btn" type="submit">创建题库</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="libraryList" class="grid survey-grid"></div>
+    <div id="libraryEmpty" class="card empty hidden">
+      <div class="empty-mark">库</div>
+      <h2>还没有题库</h2>
+      <p>建一个题库，把“你的年龄”这类常用题收进去，下次直接取用。</p>
+    </div>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/libraries.js" defer></script>
+{% endblock %}

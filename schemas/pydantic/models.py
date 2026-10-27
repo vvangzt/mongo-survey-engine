@@ -12,13 +12,15 @@ import math
 from enum import Enum
 from typing import Annotated, Literal, Union
 
+from bson import ObjectId
 from pydantic import (
     AwareDatetime,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
-    StrictInt,
     FiniteFloat,
+    StrictInt,
     StringConstraints,
     field_validator,
     model_validator,
@@ -74,6 +76,26 @@ SubmissionToken = Annotated[
 ]
 ContentHash = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
 NumberValue = Union[StrictInt, FiniteFloat]
+
+
+def _object_id_str(value: object) -> object:
+    """Accept a BSON ObjectId (straight from MongoDB) as its hex string.
+
+    Documents are read from PyMongo with real ObjectId values, while the HTTP
+    contract only knows hex strings. Coercing once at the boundary keeps both
+    sides honest without weakening the pattern check.
+    """
+
+    if isinstance(value, ObjectId):
+        return str(value)
+    return value
+
+
+ObjectIdRef = Annotated[
+    str,
+    BeforeValidator(_object_id_str),
+    StringConstraints(pattern=r"^[0-9a-fA-F]{24}$"),
+]
 
 
 class StrictModel(BaseModel):
@@ -234,12 +256,26 @@ class JumpLogic(StrictModel):
     rules: list[JumpRule] = Field(default_factory=list, max_length=MAX_RULES)
 
 
+class QuestionRef(StrictModel):
+    """Pointers from a survey-embedded question to the shared question library.
+
+    ``entity_id`` is the stable cross-survey identity of the question;
+    ``version_id`` is the immutable content version that this survey version
+    pinned. Both are optional on the surrounding documents so that phase-1
+    data, which has no library reference at all, stays valid.
+    """
+
+    entity_id: ObjectIdRef
+    version_id: ObjectIdRef
+
+
 class QuestionBase(StrictModel):
     question_id: QuestionId
     title: str = Field(min_length=1, max_length=500)
     description: str | None = Field(default=None, max_length=2000)
     required: bool = False
     logic: JumpLogic | None = None
+    question_ref: QuestionRef | None = None
 
     @property
     def jump_rules(self) -> tuple[JumpRule, ...]:
@@ -476,7 +512,7 @@ class SurveyVersion(MongoDocument):
     survey_id: ObjectIdStr
     version_no: int = Field(ge=1)
     state: VersionState
-    content_schema_version: Literal[1] = 1
+    content_schema_version: Literal[1, 2] = 1
     revision: int = Field(ge=1)
     questions: list[Question] = Field(
         min_length=1, max_length=MAX_QUESTIONS
@@ -547,6 +583,7 @@ class SurveyVersion(MongoDocument):
 
 class AnswerBase(StrictModel):
     question_id: QuestionId
+    question_ref: QuestionRef | None = None
 
 
 class SingleChoiceAnswer(AnswerBase):
@@ -685,6 +722,7 @@ __all__ = [
     "NumberValidation",
     "NumberValue",
     "NumericStats",
+    "ObjectIdRef",
     "ObjectIdStr",
     "Option",
     "OptionCount",
@@ -692,6 +730,7 @@ __all__ = [
     "Question",
     "QuestionBase",
     "QuestionId",
+    "QuestionRef",
     "Response",
     "RuleAction",
     "RuleId",

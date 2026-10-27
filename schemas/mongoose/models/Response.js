@@ -11,6 +11,7 @@ const {
   QUESTION_ID_RE,
   SUBMISSION_TOKEN_RE,
 } = require('./validation');
+const { questionRefSchema } = require('./questionRef');
 
 const answerBaseSchema = new Schema(
   {
@@ -18,6 +19,10 @@ const answerBaseSchema = new Schema(
       type: String,
       required: true,
       match: QUESTION_ID_RE,
+    },
+    question_ref: {
+      type: questionRefSchema,
+      default: undefined,
     },
   },
   {

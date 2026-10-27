@@ -1,0 +1,15 @@
+﻿database: survey_phase2_demo
+users                       : 1
+surveys                     : 1
+survey_versions             : 2
+responses                   : 2
+questions                   : 6
+question_versions           : 6
+question_shares             : 0
+question_libraries          : 0
+question_library_items      : 0
+assertions checked          : 27
+failures                    : 0
+warnings                    : 0
+
+MIGRATION VERIFICATION PASSED

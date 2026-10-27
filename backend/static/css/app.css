@@ -1278,3 +1278,222 @@ textarea::placeholder {
     grid-template-columns: 1fr;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Phase 2: shared question library                                    */
+/* ------------------------------------------------------------------ */
+
+.qv-panel {
+  margin-bottom: 22px;
+  padding: 22px;
+}
+
+.qv-panel h2 {
+  margin: 0 0 6px;
+}
+
+.qv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.qv-toolbar input,
+.qv-toolbar select {
+  min-width: 160px;
+}
+
+.qv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.qv-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.qv-inline select {
+  min-width: 260px;
+}
+
+.qv-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.qv-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.qv-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 880px) {
+  .qv-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qv-content {
+  display: grid;
+  gap: 6px;
+}
+
+.qv-plain {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.qv-plain code,
+.qv-hash {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  color: var(--subtle);
+}
+
+.qv-code {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.qv-versions,
+.qv-items,
+.qv-usages,
+.qv-sharers {
+  display: grid;
+  gap: 10px;
+}
+
+.qv-version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.qv-share-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.qv-option {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.qv-option-label {
+  flex: 1;
+}
+
+.qv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.qv-table th,
+.qv-table td {
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qv-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.qv-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.qv-bar-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 180px) minmax(0, 1fr) 56px;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.qv-bar {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+.qv-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.qv-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qv-bar-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.qv-quote {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--primary);
+  background: var(--surface-soft);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.qv-quote p {
+  margin: 0 0 6px;
+}
+
+.qv-quote cite {
+  color: var(--subtle);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.page-head.compact {
+  margin-bottom: 14px;
+}

@@ -18,6 +18,8 @@
       <nav class="nav" aria-label="主导航">
         {% if current_user %}
           <a class="nav-link" href="/dashboard">我的问卷</a>
+          <a class="nav-link" href="/questions">题目库</a>
+          <a class="nav-link" href="/libraries">题库</a>
           <div class="user-chip">
             <span class="avatar">{{ current_user.display_name[0] }}</span>
             <span>{{ current_user.display_name }}</span>

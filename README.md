@@ -25,7 +25,12 @@ mongod --dbpath ./data
 # 4. 初始化索引（AUTO_CREATE_INDEXES=true 时应用启动也会自动执行）
 python -m backend.init_db
 
-# 5. 启动应用
+# 5. 从第一阶段升级数据（新库可跳过）
+python scripts/migrate_phase2.py
+python scripts/backfill_response_refs.py
+python scripts/verify_migration.py
+
+# 6. 启动应用
 uvicorn backend.main:app --reload
 ```
 
@@ -57,6 +62,17 @@ uvicorn backend.main:app --reload
 - **运行保障**：单机 MongoDB 可运行、索引初始化、真实的注册/登录集成测试、
   并发匿名提交测试；不依赖 Docker 或 Playwright。
 
+第二阶段（需求变更）新增：
+
+- **题目库**：把题目保存为独立实体，可在任意问卷里重复使用；题目有版本历史
+  （v1 → v2 → v3）、可恢复旧版本、可派生新题并记录来源。
+- **共享**：把题目共享给其他用户（可查看 / 可使用），授权单独建集合，可随时撤销。
+- **改题不伤旧问卷**：改题只生成新的题目版本；已发布问卷钉住它引用时的版本。
+- **题库**：把题目整理成命名题库，可以从题库选题；题库引用题目实体，永远取最新版本。
+- **反向查询**：查看某道题被哪些问卷（哪个版本）使用，改题前先看影响范围。
+- **跨问卷统计**：一道题在所有问卷里的作答数、选项频次、数字均值/最值、文本回答分页。
+- **迁移工具**：`scripts/migrate_phase2.py` 等四个脚本把第一阶段数据平滑升级，可重复执行。
+
 ## 页面
 
 | 路径 | 页面 |
@@ -66,6 +82,10 @@ uvicorn backend.main:app --reload
 | `/surveys/{id}/edit` | 问卷编辑器 |
 | `/surveys/{id}/stats` | 统计面板 |
 | `/survey/{slug}` | 公开填写页 |
+| `/questions` | 题目库（我的 / 共享 / 公开 / 题库） |
+| `/questions/{id}` | 题目详情：版本历史、共享、被哪些问卷使用 |
+| `/questions/{id}/stats` | 单题跨问卷统计 |
+| `/libraries`、`/libraries/{id}` | 题库列表与题库内容 |
 
 ## API 与文档
 
@@ -88,9 +108,12 @@ python -m pytest -v
 测试会自动启动隔离的临时 `mongod` 和真实的 Uvicorn 服务；如果环境中没有 `mongod`，
 可通过 `MONGODB_TEST_URI` 指向一个可丢弃的 MongoDB。测试不使用 Playwright。
 
+当前全量测试为 **130 passed**：第一阶段 64 个用例的断言未改动，第二阶段新增 66 个，
+覆盖题目版本、共享权限、题库、跨问卷统计、迁移兼容和新页面。
+
 测试覆盖：创建问卷、添加四种题型、分支跳转、多选/数字校验、正常与匿名提交、
 统计准确性、注册登录、权限隔离、关闭问卷、公开 Slug 填写、重复提交、草稿保存、
-并发匿名提交和页面渲染。
+并发匿名提交、题目库与版本、共享、题库、跨问卷统计、迁移兼容和页面渲染。
 
 ## 当前边界
 
@@ -109,29 +132,37 @@ python -m pytest -v
 
 ## 0. 核心结论
 
-采用 **4 个核心集合 + 1 个可选统计投影集合**：
+第二阶段把“题目”从问卷版本里拆了出来，现在是 **9 个集合**：
 
 | 集合 | 职责 | 增长方式 |
 |---|---|---|
 | `users` | 账户、密码哈希、账号状态 | 随注册用户增长 |
 | `surveys` | 可变元数据、所有者、Slug、状态、截止时间、匿名策略、当前版本引用 | 每个问卷一条 |
-| `survey_versions` | 不可变问卷内容快照：题目、选项、校验规则、跳转规则 | 每次“发布新版本”新增一条 |
-| `responses` | 一份提交 = 一个文档，内嵌该次提交的答案数组 | 随答卷量线性增长 |
+| `survey_versions` | 不可变问卷内容快照：题目（含冻结内容）、选项、校验规则、跳转规则，以及指向题目库的 `question_ref` | 每次“发布新版本”新增一条 |
+| `responses` | 一份提交 = 一个文档，内嵌答案数组；答案为可选的 `question_ref` | 随答卷量线性增长 |
+| **`questions`** | 题目实体：稳定身份、所有者、可见性、最新版本指针、派生来源 | 每道题一条 |
+| **`question_versions`** | 不可变题目内容快照：v1 → v2 → v3 | 每次改题新增一条 |
+| **`question_shares`** | 题目共享授权（谁把哪道题共享给谁、什么权限） | 每次共享一条 |
+| **`question_libraries`** | 题库元数据 | 每个题库一条 |
+| **`question_library_items`** | 题库条目（题库 ↔ 题目） | 每加入一次一条 |
 | `survey_stat_snapshots`（可选） | 可按版本重建的统计投影 | 每个问卷版本一条，可随时重算 |
 
 三个关键决策：
 
-1. **题目与选项内嵌在 `survey_versions`**，因为题目和跳转逻辑需要作为同一个快照原子读取；
-   题目数量有上限，适合内嵌。
+1. **题目“引用 + 冻结快照”并存**。问卷版本内仍然保存完整题目内容（这就是快照），
+   另外挂一个 `question_ref = {entity_id, version_id}` 提供跨问卷身份。
+   快照负责“这一版问卷长什么样”，引用负责“这道题在全局是谁”，
+   两者的一致性由发布时的内容哈希校验强制执行（见 §3.3）。
 2. **答卷不内嵌进问卷，一次提交的全部答案内嵌在一个 `responses` 文档**。
    这样答卷写入是一次单文档原子插入，天然避免“问卷文档无限增长”和“16 MB 上限”，
-   也不会对问卷文档形成写热点。
-3. **发布后的 `survey_versions` 不可修改**。修改问卷会生成新版本；答卷固定引用它答题时的版本。
-   这同时解决统计口径、历史答卷可解释性和第二阶段兼容性。
+   也不会对问卷文档形成写热点。答案额外记录 `question_ref`，用于跨问卷统计。
+3. **发布后的 `survey_versions` 与任何 `question_versions` 都不可修改**。
+   改问卷生成新的问卷版本；改题生成新的题目版本；答卷固定引用它答题时的版本。
 
 如果必须在 FastAPI 和 Express 之间选一个，建议 **FastAPI + Pydantic v2 + PyMongo/Motor**：
 Pydantic 的判别联合和跨字段校验更适合这种多态题目与逻辑图模型。Mongoose 版本也已给出，
-用于团队选择 Express 时保持一致的数据契约。
+用于团队选择 Express 时保持一致的数据契约。三套模型（Pydantic / JSON Schema / Mongoose）
+对同一份题目内容计算出的 `content_hash` 完全一致，由 `scripts/verify_*` 交叉验证。
 
 ---
 
@@ -159,16 +190,29 @@ erDiagram
 
 ## 1.2 为什么这样切分集合
 
-### 为什么题目内嵌在版本中，而不是单独建 `questions` 集合
+### 为什么第二阶段把题目拆成独立集合，而不是继续内嵌
 
-- 展示、校验、跳转都需要完整题目图；内嵌后一次读取版本文档即可完成，不需要 N+1 查询或多集合组装。
-- 一个问卷版本的题目数量是有界的（本设计硬限制 300 题），题目定义属于版本快照的一部分。
-- 发布版本不可变，天然避免“题目改了，旧答卷却用新题目解释”的漂移。
-- 选项也内嵌在题目内：选项通常只有几个到几十个，且与题目同生命周期。
+第一阶段内嵌的理由仍然成立：展示、校验、统计都需要一次读取完整题目图。
+但需求变更提出了一个内嵌无法表达的问题——**同一道题要跨问卷存在**。
+内嵌时 `question_id` 只是版本内字符串（`q_single_0001`），离开那一版问卷就没有意义，
+于是“保存常用题、共享给他人、版本历史、被哪些问卷使用、跨问卷统计”五件事全部落空。
 
-如果第二阶段真的出现“题库、跨问卷共享题目、超大问卷块”，再增加
-`question_blocks` 集合并按版本引用即可，不需要推翻现有 `responses` 和统计口径。
-当前阶段不预设这种复杂度。
+因此第二阶段改为“引用 + 冻结快照”：
+
+- `questions` 提供跨问卷稳定的身份（ObjectId）、所有者与可见性；
+- `question_versions` 提供不可变的内容版本（v1 → v2 → v3，`parent_version_id` 连成链）；
+- `survey_versions.questions[]` 仍然保存完整内容（快照），另加 `question_ref`，
+  于是第一阶段“一次读取即可展示 / 校验 / 统计”的结论完全没有退化；
+- 一致性靠三条规则锁住：引用题的快照内容必须与所引版本哈希相同；
+  要改内容只能生成新版本或 fork；发布时重算哈希，不一致直接拒绝发布。
+
+代价是同一份内容存了两处，换来的是“读路径零退化 + 跨问卷身份”。
+这正是 §3.2 讨论的“反范式冗余如何保证一致性”的具体答案。
+
+> 第一阶段文档曾预言：“如果第二阶段真的出现题库、跨问卷共享题目、超大问卷块，
+> 再增加集合并按版本引用即可，不需要推翻现有 `responses` 和统计口径。”
+> 第二阶段正是按这个预案执行的：`responses` 的旧字段、统计管道的 5 个 `$facet`、
+> 跳转引擎与校验引擎一行都没有改。
 
 ### 为什么答卷不内嵌到问卷
 
@@ -572,6 +616,93 @@ db.responses.aggregate([
 
 ---
 
+## 2.8 `questions`（第二阶段新增：题目实体）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `_id` | ObjectId | 题目身份，跨问卷稳定 |
+| `owner_id` | ObjectId → `users` | 所有者；只有所有者能改题、共享、删除 |
+| `root_entity_id` | ObjectId | 血统根，用于“同族题目”查询 |
+| `source_entity_id` / `source_version_id` | ObjectId \| null | fork 来源（“新题是从哪道题改来的”） |
+| `lineage_depth` | int | fork 代数，自身为 0 |
+| `type` / `title` | string | 冗余字段，列表筛选与展示不必读版本 |
+| `visibility` | `private` / `shared` / `public` | 私有、授权可见、全站可用 |
+| `latest_version_id` / `latest_version_no` / `version_count` | | 版本指针与计数 |
+| `deleted_at` | Date \| null | 软删除；被已发布问卷引用时禁止删除 |
+
+## 2.9 `question_versions`（第二阶段新增：不可变题目版本）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `entity_id` | ObjectId → `questions` | 所属题目 |
+| `version_no` | int ≥1 | 从 1 递增，`(entity_id, version_no)` 唯一 |
+| `parent_version_id` | ObjectId \| null | 上一版本；v1 必须为 null，v2+ 必须非空 |
+| `restored_from_version_id` | ObjectId \| null | “恢复旧版本”时记录来源 |
+| `content` | `QuestionContent` | 判别联合：题型 + 标题/说明/必答/选项/校验 |
+| `content_hash` | 64 位十六进制 | 内容的 sha256；模型层校验必须与 `content` 一致 |
+| `legacy_key` | string \| null | 迁移幂等键 `"{survey_version_id}:{question_id}"` |
+
+**没有任何代码路径会更新已写入的版本**；改题 = 插入 `version_no + 1`。
+题目内容里刻意不含 `question_id`（问卷内实例 ID）与 `logic`（跳转规则），
+因为这两者依赖问卷内的位置，抽出去才能复用。
+
+## 2.10 `question_shares`（第二阶段新增：共享授权）
+
+`{entity_id, grantee_id, permission(view|use), granted_by, created_at}`，
+`(entity_id, grantee_id)` 唯一。`use` 表示可以插入自己的问卷，`view` 只能查看。
+单独建集合而不是在题目里内嵌数组，因为共享对象数量没有上限（可以共享给整个班级），
+并且需要独立撤销与审计。
+
+## 2.11 `question_libraries` / `question_library_items`（第二阶段新增：题库）
+
+- `question_libraries`：`{owner_id, name, description, visibility(private|public)}`，
+  `(owner_id, name)` 唯一。
+- `question_library_items`：`{library_id, entity_id, added_by, added_at, note, tags}`，
+  `(library_id, entity_id)` 唯一。
+
+条目引用的是**题目实体**而不是某个版本，所以“题库里的题可以更新版本”是自然结果：
+题库里取到的永远是这道题的最新版本。
+
+## 2.12 第二阶段新增索引
+
+```text
+questions:              { owner_id: 1, updated_at: -1 }        我的题目列表
+questions:              { root_entity_id: 1 }                   同族题目
+questions:              { owner_id: 1, type: 1, deleted_at: 1 }  按题型筛选
+question_versions:      { entity_id: 1, version_no: 1 } unique  版本唯一
+question_versions:      { entity_id: 1, created_at: -1 }        版本历史
+question_versions:      { parent_version_id: 1 }                子版本
+question_versions:      { legacy_key: 1 } unique partial        迁移幂等
+question_shares:        { entity_id: 1, grantee_id: 1 } unique
+question_shares:        { grantee_id: 1, created_at: -1 }       共享给我的
+question_libraries:     { owner_id: 1, name: 1 } unique
+question_libraries:     { visibility: 1, updated_at: -1 }       公开题库
+question_library_items: { library_id: 1, entity_id: 1 } unique
+question_library_items: { entity_id: 1 }                        此题被哪些题库收录
+survey_versions:        { questions.question_ref.entity_id: 1 }        ← 反向查询（多键）
+survey_versions:        { questions.question_ref.version_id: 1 }       ← 版本级使用
+responses:              { answers.question_ref.entity_id: 1, submitted_at: -1 }  ← 跨问卷统计
+responses:              { answers.question_ref.version_id: 1 }
+```
+
+后四条是第二阶段最重要的两条查询的支撑：
+“这道题被哪些问卷用了”（反向查询）与“这道题在所有问卷里怎么答的”（跨问卷统计），
+都从集合扫描变成多键索引扫描。
+
+## 2.13 六条不变式
+
+| # | 不变式 | 强制位置 |
+|---|---|---|
+| I1 | `question_versions` 只插入不更新，改题 = 新增 `version_no+1` | 服务层无更新路径；Mongoose `pre('save')` 兜底 |
+| I2 | 问卷版本中带 `question_ref` 的题目，内容哈希必须等于所引用版本 | `replace_draft`、`publish_survey` 校验 |
+| I3 | 同一 `survey_versions` 内 `question_ref.entity_id` 不得重复 | 保存草稿、从题库插入 |
+| I4 | 答卷答案的 `question_ref.version_id` 必须等于该问卷版本中该题的引用版本 | 提交时由服务端写入，客户端传的会被丢弃 |
+| I5 | 被任一已发布问卷版本引用的题目不得硬删除，只能软删 | `delete_question` |
+| I6 | 同一题目内 `option_id` 跨版本稳定：按 label 继承旧 ID，只给新选项分配新 ID | 生成新版本时合并选项 |
+
+I6 是跨版本统计能按 `option_id` 合并的前提；改名视为“旧选项删除 + 新选项新增”。
+I2 是“反范式冗余”能成立的前提——内容存了两处，但只允许有一个权威版本。
+
 # 3. 两个报告必答的架构问题
 
 ## 3.1 为什么该业务场景适合 MongoDB，而不是传统关系型数据库？
@@ -678,6 +809,50 @@ db.responses.aggregate([
 - **统计按版本展示**：不同版本之间只合并 ID 与语义都稳定的题目，否则分别展示。
 
 ---
+
+## 3.4 第二阶段实际落地（需求变更 → 数据结构 → 程序）
+
+需求变更提出 8 条诉求，落到系统里是这样一组改动：
+
+| # | 用户诉求 | 数据结构 | 程序 |
+|---|---|---|---|
+| 1 | 保存常用题目、做新问卷时直接选用 | 新增 `questions` + `question_versions` | `POST /api/questions`、问卷侧“从题库插入” |
+| 2 | 把题目共享给同事 | 新增 `question_shares` + `visibility` | 共享/撤销接口与权限判定 |
+| 3 | 改题不影响已发布问卷 | 改题 = 新增版本 | 禁止原地改版本；问卷只钉住某个 `version_id` |
+| 4 | 看修改历史、知道来源、能恢复 | `parent_version_id`、`restored_from_version_id`、`source_entity_id` | 版本历史、恢复、fork 接口 |
+| 5 | 同一题不同版本并存 | `survey_versions.questions[].question_ref.version_id` | 生成新版本 + 问卷“更新到最新版本” |
+| 6 | 查某题被哪些问卷使用 | `questions.question_ref.entity_id` 多键索引 | `GET /api/questions/{id}/usages` |
+| 7 | 建题库、从题库选题 | 新增 `question_libraries` / `question_library_items` | 题库 CRUD 与选题接口 |
+| 8 | 看单题跨问卷统计 | `answers.question_ref` + 新索引 | 新的聚合管道 `backend/stats/cross.py` |
+
+### 迁移：旧数据怎么获得新身份
+
+第一阶段不存在共享，所以迁移时**每个 `(问卷版本, 题目)` 各自成为独立实体**，
+不做跨问卷合并——合并需要猜测用户意图（标题相同的两道题未必是同一道题），宁可保守。
+迁移是纯加法、可重复执行：
+
+```bash
+python scripts/migrate_phase2.py --dry-run   # 先看会改什么
+python scripts/migrate_phase2.py             # 补 questions / question_versions / question_ref
+python scripts/backfill_response_refs.py     # 给旧答卷补 answers[].question_ref
+python scripts/verify_migration.py           # 校验 27 项断言
+```
+
+幂等键是 `(survey_version_id, question_id)` 写进 `question_versions.legacy_key`（唯一部分索引），
+所以第二次执行为 `created=0`。无法解析的旧题目会被**跳过而不是删除**，原内容原样保留。
+
+### 兼容性结论
+
+| 场景 | 结论 |
+|---|---|
+| 读取第一阶段问卷版本 | 正常：`question_ref` 是可选字段，缺失即“纯内嵌题目” |
+| 保存草稿 / 发布 | 无引用的题目跳过哈希校验，行为与第一阶段一致 |
+| 提交答卷 | 旧版本不写 `question_ref`；单卷统计管道一行未改 |
+| 旧 API 请求体 | 全部兼容：新字段都可选 |
+| 跨问卷统计 | 只统计带引用的答案；旧数据不参与（它本来就没有跨问卷身份） |
+
+真正的“旧功能仍可用”证据是测试套件：第一阶段 64 个用例**一个断言都没改**，
+第二阶段再新增 66 个用例，共 130 个通过。
 
 # 4. 交付物与校验
 

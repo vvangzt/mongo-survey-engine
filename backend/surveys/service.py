@@ -12,7 +12,7 @@ import hashlib
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Iterable
 
 from bson import ObjectId
 from pydantic import ValidationError
@@ -22,13 +22,22 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from schemas.pydantic import (
     Question,
+    QuestionRef,
     SurveyVersion,
+    content_of,
+    hash_content,
+    question_from_content,
     validate_submission,
 )
 
+from ..questions.service import (
+    QuestionLibraryService,
+    QuestionNotFoundError as LibraryQuestionNotFound,
+)
 from .schemas import (
     ClosedOut,
     DraftUpdateIn,
+    FromLibraryIn,
     PublishedOut,
     QuestionAddedOut,
     SubmitIn,
@@ -101,6 +110,22 @@ def _canonical_questions(version: SurveyVersion) -> list[dict[str, Any]]:
     ]
 
 
+def _question_document(question: Question) -> dict[str, Any]:
+    """Dump a question for storage, keeping references as real ObjectIds.
+
+    ``model_dump(mode="json")`` renders ObjectIds as hex strings because that is
+    what the HTTP contract needs. BSON storage and ``$lookup`` need the real
+    type, so the reference is normalised here at the persistence boundary.
+    """
+
+    document = question.model_dump(mode="json", exclude_none=True)
+    ref = document.get("question_ref")
+    if ref is not None:
+        ref["entity_id"] = ObjectId(ref["entity_id"])
+        ref["version_id"] = ObjectId(ref["version_id"])
+    return document
+
+
 def _version_out(document: dict[str, Any]) -> VersionOut:
     return VersionOut(
         id=str(document["_id"]),
@@ -143,6 +168,253 @@ class SurveyService:
         self._surveys = db["surveys"]
         self._versions = db["survey_versions"]
         self._responses = db["responses"]
+        self._questions = QuestionLibraryService(db)
+
+    # ------------------------------------------------------------------
+    # shared question library integration
+    # ------------------------------------------------------------------
+
+    async def _check_question_refs(
+        self, questions: Iterable[Question]
+    ) -> None:
+        """Enforce invariants I2 (snapshot == version) and I3 (no duplicates).
+
+        Applies to drafts being saved and to versions being published. Legacy
+        questions carry no reference and are skipped, which is what keeps
+        phase-1 data working unchanged.
+        """
+
+        referenced = [
+            (question, question.question_ref)
+            for question in questions
+            if question.question_ref is not None
+        ]
+        if not referenced:
+            return
+
+        entity_ids = [ref.entity_id for _question, ref in referenced]
+        if len(set(entity_ids)) != len(entity_ids):
+            raise SurveyValidationError(
+                "the same shared question may appear only once in a survey"
+            )
+
+        documents = await self._questions.versions_by_id(
+            [ObjectId(ref.version_id) for _question, ref in referenced]
+        )
+        for question, ref in referenced:
+            document = documents.get(ref.version_id)
+            if document is None:
+                raise SurveyValidationError(
+                    "referenced question version does not exist"
+                )
+            if str(document["entity_id"]) != ref.entity_id:
+                raise SurveyValidationError(
+                    "question reference does not match its version"
+                )
+            if hash_content(content_of(question)) != document["content_hash"]:
+                raise SurveyValidationError(
+                    "question content no longer matches the referenced "
+                    "version; create a new question version instead of "
+                    "editing the copy inside this survey"
+                )
+
+    async def add_question_from_library(
+        self,
+        owner_id: ObjectId,
+        survey_id: ObjectId,
+        payload: FromLibraryIn,
+    ) -> QuestionAddedOut:
+        """Insert a question from the library into the editable draft."""
+
+        survey = await self._surveys.find_one(
+            {"_id": survey_id, "owner_id": owner_id, "deleted_at": None}
+        )
+        if survey is None:
+            raise SurveyNotFoundError("survey not found")
+        if survey.get("status") != "draft":
+            raise SurveyConflictError(
+                "questions can only be added to a draft survey"
+            )
+        version_id = survey.get("current_draft_version_id")
+        if version_id is None:
+            raise SurveyConflictError("survey has no editable draft version")
+        version = await self._versions.find_one(
+            {"_id": version_id, "survey_id": survey_id, "state": "draft"}
+        )
+        if version is None:
+            raise SurveyConflictError("editable draft version not found")
+
+        try:
+            entity, question_version = (
+                await self._questions.resolve_version_for_use(
+                    owner_id, ObjectId(payload.question_version_id)
+                )
+            )
+        except LibraryQuestionNotFound as exc:
+            raise SurveyNotFoundError(str(exc)) from exc
+
+        instance_id = payload.question_id or f"q_lib_{uuid.uuid4().hex[:12]}"
+        for item in version.get("questions", []):
+            ref = item.get("question_ref")
+            if ref is not None and ref.get("entity_id") == entity["_id"]:
+                raise SurveyConflictError(
+                    "this question is already part of the survey"
+                )
+            if item.get("question_id") == instance_id:
+                raise SurveyConflictError(
+                    f"question already exists: {instance_id}"
+                )
+
+        content = QuestionLibraryService._parse_content(
+            question_version["content"]
+        )
+        question = question_from_content(
+            content, instance_id, logic=payload.logic
+        )
+        reference = QuestionRef(
+            entity_id=str(entity["_id"]),
+            version_id=str(question_version["_id"]),
+        )
+        question_doc = _question_document(question)
+        question_doc["question_ref"] = {
+            "entity_id": entity["_id"],
+            "version_id": question_version["_id"],
+        }
+
+        now = datetime.now(timezone.utc)
+        updated = await self._versions.find_one_and_update(
+            {
+                "_id": version_id,
+                "state": "draft",
+                "questions.question_id": {"$ne": instance_id},
+            },
+            {
+                "$push": {"questions": question_doc},
+                "$inc": {"revision": 1},
+                "$set": {"updated_at": now},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if updated is None:
+            raise SurveyConflictError("draft changed concurrently")
+        await self._surveys.update_one(
+            {"_id": survey_id}, {"$set": {"updated_at": now}}
+        )
+        question = question.model_copy(update={"question_ref": reference})
+        return QuestionAddedOut(
+            survey_id=str(survey_id),
+            survey_version_id=str(version_id),
+            revision=updated["revision"],
+            question=question,
+        )
+
+    async def refresh_question_version(
+        self,
+        owner_id: ObjectId,
+        survey_id: ObjectId,
+        instance_question_id: str,
+    ) -> QuestionAddedOut:
+        """Move one draft question to the newest version of its entity."""
+
+        survey = await self._surveys.find_one(
+            {"_id": survey_id, "owner_id": owner_id, "deleted_at": None}
+        )
+        if survey is None:
+            raise SurveyNotFoundError("survey not found")
+        if survey.get("status") != "draft":
+            raise SurveyConflictError(
+                "only a draft survey can be refreshed to a newer version"
+            )
+        version_id = survey.get("current_draft_version_id")
+        if version_id is None:
+            raise SurveyConflictError("survey has no editable draft version")
+        version = await self._versions.find_one(
+            {"_id": version_id, "survey_id": survey_id, "state": "draft"}
+        )
+        if version is None:
+            raise SurveyConflictError("editable draft version not found")
+
+        target = next(
+            (
+                item
+                for item in version.get("questions", [])
+                if item.get("question_id") == instance_question_id
+            ),
+            None,
+        )
+        if target is None:
+            raise SurveyNotFoundError("question not found in this survey")
+        ref = target.get("question_ref")
+        if ref is None:
+            raise SurveyConflictError(
+                "this question is not linked to the question library"
+            )
+
+        try:
+            entity = await self._questions.ensure_owner_entity(
+                owner_id, ref["entity_id"]
+            )
+        except LibraryQuestionNotFound as exc:
+            raise SurveyNotFoundError(str(exc)) from exc
+
+        latest = await self._questions.versions_by_id(
+            [entity["latest_version_id"]]
+        )
+        latest_version = latest.get(str(entity["latest_version_id"]))
+        if latest_version is None:
+            raise SurveyConflictError("question has no latest version")
+
+        content = QuestionLibraryService._parse_content(
+            latest_version["content"]
+        )
+        question = question_from_content(
+            content,
+            instance_question_id,
+            logic=target.get("logic"),
+        )
+        question_doc = question.model_dump(mode="json", exclude_none=True)
+        reference = QuestionRef(
+            entity_id=str(entity["_id"]),
+            version_id=str(latest_version["_id"]),
+        )
+        question_doc["question_ref"] = {
+            "entity_id": entity["_id"],
+            "version_id": latest_version["_id"],
+        }
+
+        questions = [
+            question_doc
+            if item.get("question_id") == instance_question_id
+            else item
+            for item in version.get("questions", [])
+        ]
+        now = datetime.now(timezone.utc)
+        updated = await self._versions.find_one_and_update(
+            {
+                "_id": version_id,
+                "state": "draft",
+                "revision": version["revision"],
+            },
+            {
+                "$set": {"questions": questions, "updated_at": now},
+                "$inc": {"revision": 1},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if updated is None:
+            raise SurveyConflictError(
+                "draft revision changed; reload before refreshing"
+            )
+        await self._surveys.update_one(
+            {"_id": survey_id}, {"$set": {"updated_at": now}}
+        )
+        question = question.model_copy(update={"question_ref": reference})
+        return QuestionAddedOut(
+            survey_id=str(survey_id),
+            survey_version_id=str(version_id),
+            revision=updated["revision"],
+            question=question,
+        )
 
     async def create_survey(
         self, owner_id: ObjectId, payload: SurveyCreateIn
@@ -196,7 +468,7 @@ class SurveyService:
             "survey_id": survey_id,
             "version_no": 1,
             "state": "draft",
-            "content_schema_version": 1,
+            "content_schema_version": 2,
             "revision": 1,
             "questions": [],
             "created_by": owner_id,
@@ -405,8 +677,10 @@ class SurveyService:
                 f"question already exists: {question.question_id}"
             )
 
+        await self._check_question_refs([question])
+
         now = datetime.now(timezone.utc)
-        question_doc = question.model_dump(mode="json", exclude_none=True)
+        question_doc = _question_document(question)
         updated = await self._versions.find_one_and_update(
             {
                 "_id": version_id,
@@ -485,9 +759,7 @@ class SurveyService:
             "survey_id": survey_id,
             "version_no": version_no,
             "state": "draft",
-            "content_schema_version": published.get(
-                "content_schema_version", 1
-            ),
+            "content_schema_version": 2,
             "revision": 1,
             "questions": published.get("questions", []),
             "created_by": owner_id,
@@ -548,10 +820,8 @@ class SurveyService:
         if version_id is None:
             raise SurveyConflictError("survey has no editable draft version")
 
-        questions = [
-            question.model_dump(mode="json", exclude_none=True)
-            for question in payload.questions
-        ]
+        await self._check_question_refs(payload.questions)
+        questions = [_question_document(question) for question in payload.questions]
         now = datetime.now(timezone.utc)
         updated = await self._versions.find_one_and_update(
             {
@@ -647,6 +917,8 @@ class SurveyService:
                 raise SurveyValidationError(
                     f"survey version is invalid: {exc}"
                 ) from exc
+
+            await self._check_question_refs(version_model.questions)
 
             canonical = json.dumps(
                 _canonical_questions(version_model),
@@ -816,6 +1088,24 @@ class SurveyService:
 
         result = validate_submission(version_model, payload.answers)
 
+        # Invariant I4: the stored answer carries the version the survey pinned,
+        # never a reference supplied by the client.
+        version_refs = {
+            item.get("question_id"): item.get("question_ref")
+            for item in version.get("questions", [])
+        }
+        stored_answers: list[dict[str, Any]] = []
+        for answer in result.answers:
+            document = answer.model_dump(mode="json", exclude_none=True)
+            document.pop("question_ref", None)
+            reference = version_refs.get(answer.question_id)
+            if reference:
+                document["question_ref"] = {
+                    "entity_id": reference["entity_id"],
+                    "version_id": reference["version_id"],
+                }
+            stored_answers.append(document)
+
         duplicate = await self._responses.find_one(
             {
                 "survey_id": survey_id,
@@ -837,10 +1127,7 @@ class SurveyService:
                     "respondent_id": respondent_id,
                     "is_anonymous": payload.is_anonymous,
                     "submission_token": payload.submission_token,
-                    "answers": [
-                        answer.model_dump(mode="json", exclude_none=True)
-                        for answer in result.answers
-                    ],
+                    "answers": stored_answers,
                     "submitted_at": now,
                 }
             )

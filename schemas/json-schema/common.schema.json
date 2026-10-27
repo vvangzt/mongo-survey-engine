@@ -57,6 +57,23 @@
       "const": 1,
       "description": "Physical document contract version. Increment only for breaking storage changes."
     },
+    "QuestionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pointer from a survey-embedded question or a stored answer to the shared question library. entity_id is the stable cross-survey identity; version_id is the immutable content version that was pinned. Both ids are required when the pointer is present; a missing question_ref marks phase-1 data.",
+      "properties": {
+        "entity_id": {
+          "$ref": "#/$defs/ObjectId"
+        },
+        "version_id": {
+          "$ref": "#/$defs/ObjectId"
+        }
+      },
+      "required": [
+        "entity_id",
+        "version_id"
+      ]
+    },
     "Option": {
       "type": "object",
       "additionalProperties": false,
@@ -378,6 +395,10 @@
         },
         "logic": {
           "$ref": "#/$defs/JumpLogic"
+        },
+        "question_ref": {
+          "$ref": "#/$defs/QuestionRef",
+          "description": "Optional cross-survey identity of this embedded snapshot. Absent for phase-1 questions; when present, the inline content must hash-match the referenced question_versions document."
         }
       },
       "required": [
@@ -503,6 +524,10 @@
           "properties": {
             "question_id": {
               "$ref": "#/$defs/QuestionId"
+            },
+            "question_ref": {
+              "$ref": "#/$defs/QuestionRef",
+              "description": "Optional pointer to the library version this answer was given for. Absent for phase-1 responses; the server writes it from the pinned survey version."
             }
           },
           "required": [
@@ -537,6 +562,10 @@
           "properties": {
             "question_id": {
               "$ref": "#/$defs/QuestionId"
+            },
+            "question_ref": {
+              "$ref": "#/$defs/QuestionRef",
+              "description": "Optional pointer to the library version this answer was given for. Absent for phase-1 responses; the server writes it from the pinned survey version."
             }
           },
           "required": [
@@ -571,6 +600,10 @@
           "properties": {
             "question_id": {
               "$ref": "#/$defs/QuestionId"
+            },
+            "question_ref": {
+              "$ref": "#/$defs/QuestionRef",
+              "description": "Optional pointer to the library version this answer was given for. Absent for phase-1 responses; the server writes it from the pinned survey version."
             }
           },
           "required": [
@@ -601,6 +634,10 @@
           "properties": {
             "question_id": {
               "$ref": "#/$defs/QuestionId"
+            },
+            "question_ref": {
+              "$ref": "#/$defs/QuestionRef",
+              "description": "Optional pointer to the library version this answer was given for. Absent for phase-1 responses; the server writes it from the pinned survey version."
             }
           },
           "required": [

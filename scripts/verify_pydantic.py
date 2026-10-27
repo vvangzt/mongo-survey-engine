@@ -141,8 +141,167 @@ def main() -> int:
         lambda: SurveyVersion.model_validate(bad_option),
     )
 
+    verify_question_library()
+
     print("\nPydantic contract and engine checks passed")
     return 0
+
+
+def verify_question_library() -> None:
+    """Phase-2 question-library contract: entities, versions and references."""
+
+    from pydantic import TypeAdapter
+
+    from schemas.pydantic import (
+        QuestionContent,
+        QuestionEntity,
+        QuestionLibrary,
+        QuestionLibraryItem,
+        QuestionShare,
+        QuestionVersion,
+        content_of,
+        hash_content,
+        merge_option_ids,
+        question_from_content,
+    )
+    from schemas.pydantic.models import Option
+
+    entity = QuestionEntity.model_validate(load("questions.example.json"))
+    version = QuestionVersion.model_validate(load("question_versions.example.json"))
+    share = QuestionShare.model_validate(load("question_shares.example.json"))
+    library = QuestionLibrary.model_validate(load("question_libraries.example.json"))
+    item = QuestionLibraryItem.model_validate(load("question_library_items.example.json"))
+
+    assert str(entity.latest_version_id) == str(version.id), "latest_version_id must point at the newest version"
+    assert str(version.entity_id) == str(entity.id)
+    assert str(item.entity_id) == str(entity.id)
+    assert str(item.library_id) == str(library.id)
+    assert str(share.entity_id) == str(entity.id)
+    # The model itself re-derives the hash and rejects a mismatch.
+    assert version.content_hash == hash_content(version.content)
+    print("OK   question library documents parsed:", entity.type, version.version_no, library.name)
+
+    # A survey version may carry library references without losing its shape.
+    ref_version_data = load("survey_versions.with_library_refs.example.json")
+    ref_version = SurveyVersion.model_validate(ref_version_data)
+    assert ref_version.content_schema_version == 2
+    referenced = [question for question in ref_version.questions if question.question_ref]
+    assert len(referenced) == 2, referenced
+    print(
+        "OK   survey version with question_ref:",
+        ", ".join(question.question_id for question in referenced),
+    )
+
+    # Snapshot == referenced content, so the cross-survey identity is honest.
+    for question in referenced:
+        content = content_of(question)
+        rebuilt = question_from_content(content, question.question_id)
+        assert hash_content(content_of(rebuilt)) == hash_content(content)
+    print("OK   embedded snapshot round-trips through the library content")
+
+    response_refs = Response.model_validate(
+        load("responses.with_library_refs.example.json")
+    )
+    assert sum(1 for answer in response_refs.answers if answer.question_ref) == 2
+    print("OK   response answers may carry question_ref:", len(response_refs.answers))
+
+    # A phase-1 document (no references at all) must stay valid.
+    legacy_version = SurveyVersion.model_validate(
+        load("survey_versions.example.json")
+    )
+    assert all(
+        question.question_ref is None for question in legacy_version.questions
+    )
+    assert legacy_version.content_schema_version == 1
+    print("OK   phase-1 version without question_ref still validates")
+
+    # Tampering with the content while keeping the old hash must be rejected.
+    tampered = copy.deepcopy(load("question_versions.example.json"))
+    tampered["content"]["title"] = "被篡改的标题"
+    expect_validation_error(
+        "question version with a stale content_hash",
+        lambda: QuestionVersion.model_validate(tampered),
+    )
+
+    # v1 cannot have a parent; v2 must have one.
+    orphan = copy.deepcopy(load("question_versions.example.json"))
+    orphan["version_no"] = 1
+    expect_validation_error(
+        "first question version with a parent",
+        lambda: QuestionVersion.model_validate(orphan),
+    )
+    missing_parent = copy.deepcopy(load("question_versions.example.json"))
+    missing_parent["parent_version_id"] = None
+    expect_validation_error(
+        "later question version without a parent",
+        lambda: QuestionVersion.model_validate(missing_parent),
+    )
+
+    # I6: option ids survive across versions so cross-version stats can merge.
+    previous = [
+        Option(option_id="o_male_000001", label="男"),
+        Option(option_id="o_female_0001", label="女"),
+    ]
+    merged = merge_option_ids(
+        previous,
+        [
+            Option(option_id="o_temp_0000001", label="女"),
+            Option(option_id="o_temp_0000002", label="其他"),
+        ],
+    )
+    assert merged[0].option_id == "o_female_0001", merged
+    assert merged[1].option_id not in {"o_male_000001", "o_female_0001"}
+    print("OK   option_id inherited by label:", merged[0].option_id)
+
+    # All four discriminator branches of QuestionContent must parse.
+    content_adapter = TypeAdapter(QuestionContent)
+    for payload in (
+        {
+            "type": "single_choice",
+            "title": "性别",
+            "options": [
+                {"option_id": "o_a_000000001", "label": "男"},
+                {"option_id": "o_b_000000001", "label": "女"},
+            ],
+        },
+        {
+            "type": "multi_choice",
+            "title": "水果",
+            "options": [
+                {"option_id": "o_a_000000002", "label": "苹果"},
+                {"option_id": "o_b_000000002", "label": "香蕉"},
+            ],
+            "validation": {"min_selected": 1, "max_selected": 2},
+        },
+        {
+            "type": "text",
+            "title": "建议",
+            "validation": {"max_length": 200},
+        },
+        {
+            "type": "number",
+            "title": "年龄",
+            "validation": {"integer": True, "min": 0, "max": 120},
+        },
+    ):
+        parsed = content_adapter.validate_python(payload)
+        assert len(hash_content(parsed)) == 64
+    print("OK   QuestionContent parses all four types")
+
+    # Duplicate option ids inside one question are still rejected.
+    expect_validation_error(
+        "duplicate option ids in library content",
+        lambda: content_adapter.validate_python(
+            {
+                "type": "single_choice",
+                "title": "重复选项",
+                "options": [
+                    {"option_id": "o_a_000000009", "label": "甲"},
+                    {"option_id": "o_a_000000009", "label": "乙"},
+                ],
+            }
+        ),
+    )
 
 
 if __name__ == "__main__":

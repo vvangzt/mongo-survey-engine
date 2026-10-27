@@ -71,5 +71,100 @@ async def create_indexes(db: AsyncDatabase) -> None:
         name="ux_stats_survey_version",
     )
 
+    # ------------------------------------------------------------------
+    # Phase 2: shared question library
+    # ------------------------------------------------------------------
+
+    await db["questions"].create_index(
+        [("owner_id", 1), ("updated_at", -1)],
+        name="ix_questions_owner_updated",
+    )
+    await db["questions"].create_index(
+        [("root_entity_id", 1)],
+        name="ix_questions_root",
+    )
+    await db["questions"].create_index(
+        [("owner_id", 1), ("type", 1), ("deleted_at", 1)],
+        name="ix_questions_owner_type_deleted",
+    )
+
+    await db["question_versions"].create_index(
+        [("entity_id", 1), ("version_no", 1)],
+        unique=True,
+        name="ux_qversions_entity_version_no",
+    )
+    await db["question_versions"].create_index(
+        [("entity_id", 1), ("created_at", -1)],
+        name="ix_qversions_entity_created",
+    )
+    await db["question_versions"].create_index(
+        [("parent_version_id", 1)],
+        name="ix_qversions_parent",
+    )
+    await db["question_versions"].create_index(
+        [("legacy_key", 1)],
+        unique=True,
+        name="ux_qversions_legacy_key",
+        partialFilterExpression={"legacy_key": {"$type": "string"}},
+    )
+
+    await db["question_shares"].create_index(
+        [("entity_id", 1), ("grantee_id", 1)],
+        unique=True,
+        name="ux_shares_entity_grantee",
+    )
+    await db["question_shares"].create_index(
+        [("grantee_id", 1), ("created_at", -1)],
+        name="ix_shares_grantee_created",
+    )
+
+    await db["question_libraries"].create_index(
+        [("owner_id", 1), ("name", 1)],
+        unique=True,
+        name="ux_libraries_owner_name",
+    )
+    await db["question_libraries"].create_index(
+        [("owner_id", 1), ("updated_at", -1)],
+        name="ix_libraries_owner_updated",
+    )
+    await db["question_libraries"].create_index(
+        [("visibility", 1), ("updated_at", -1)],
+        name="ix_libraries_visibility_updated",
+    )
+
+    await db["question_library_items"].create_index(
+        [("library_id", 1), ("entity_id", 1)],
+        unique=True,
+        name="ux_litems_library_entity",
+    )
+    await db["question_library_items"].create_index(
+        [("library_id", 1), ("added_at", -1)],
+        name="ix_litems_library_added",
+    )
+    await db["question_library_items"].create_index(
+        [("entity_id", 1)],
+        name="ix_litems_entity",
+    )
+
+    # Multikey indexes that make "which surveys use this question" (reverse
+    # lookup) and "statistics for one question across surveys" index-only
+    # narrowing scans instead of collection scans.
+    await db["survey_versions"].create_index(
+        [("questions.question_ref.entity_id", 1)],
+        name="ix_versions_question_entity",
+    )
+    await db["survey_versions"].create_index(
+        [("questions.question_ref.version_id", 1)],
+        name="ix_versions_question_version",
+    )
+    await db["responses"].create_index(
+        [("answers.question_ref.entity_id", 1), ("submitted_at", -1)],
+        name="ix_responses_answer_entity_submitted",
+    )
+    await db["responses"].create_index(
+        [("answers.question_ref.version_id", 1)],
+        name="ix_responses_answer_version",
+    )
+
 
 __all__ = ["create_indexes"]

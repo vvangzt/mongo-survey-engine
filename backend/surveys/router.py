@@ -15,6 +15,7 @@ from ..dependencies import (
 from .schemas import (
     ClosedOut,
     DraftUpdateIn,
+    FromLibraryIn,
     PublishedOut,
     QuestionAddedOut,
     SubmitIn,
@@ -188,6 +189,65 @@ async def add_question(
     try:
         return await service.add_question(
             user_id, _object_id(survey_id), question
+        )
+    except (
+        SurveyNotFoundError,
+        SurveyUnauthenticatedError,
+        SurveyForbiddenError,
+        SurveyConflictError,
+        SurveyValidationError,
+        SubmissionValidationError,
+    ) as exc:
+        raise_http_error(exc)
+        raise AssertionError("unreachable")
+
+
+@router.post(
+    "/{survey_id}/questions/from-library",
+    response_model=QuestionAddedOut,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_201_CREATED,
+    summary="从题目库插入题目到草稿（带 question_ref）",
+)
+async def add_question_from_library(
+    user_id: CurrentUserIdDep,
+    service: SurveyServiceDep,
+    payload: FromLibraryIn,
+    survey_id: str = Path(..., pattern=SURVEY_ID_PATTERN),
+) -> QuestionAddedOut:
+    try:
+        return await service.add_question_from_library(
+            user_id, _object_id(survey_id), payload
+        )
+    except (
+        SurveyNotFoundError,
+        SurveyUnauthenticatedError,
+        SurveyForbiddenError,
+        SurveyConflictError,
+        SurveyValidationError,
+        SubmissionValidationError,
+    ) as exc:
+        raise_http_error(exc)
+        raise AssertionError("unreachable")
+
+
+@router.post(
+    "/{survey_id}/questions/{instance_question_id}/refresh",
+    response_model=QuestionAddedOut,
+    response_model_exclude_none=True,
+    summary="把草稿中的某道题升级到题目最新版本",
+)
+async def refresh_question_version(
+    user_id: CurrentUserIdDep,
+    service: SurveyServiceDep,
+    survey_id: str = Path(..., pattern=SURVEY_ID_PATTERN),
+    instance_question_id: str = Path(
+        ..., pattern=r"^q_[A-Za-z0-9_-]{8,64}$"
+    ),
+) -> QuestionAddedOut:
+    try:
+        return await service.refresh_question_version(
+            user_id, _object_id(survey_id), instance_question_id
         )
     except (
         SurveyNotFoundError,

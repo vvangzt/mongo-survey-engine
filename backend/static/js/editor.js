@@ -374,8 +374,10 @@
                 <span class="qnum">${index + 1}</span>
                 <span>${App.escapeHtml(typeLabel(question.type))}</span>
                 ${required ? `<span class="badge draft">必答</span>` : ""}
+                ${question.question_ref ? `<span class="badge published">题库</span>` : ""}
               </div>
               <div class="actions">
+                ${question.question_ref ? `<button class="btn ghost small" type="button" data-refresh-question="${App.escapeHtml(question.question_id)}" ${state.readonly ? "disabled" : ""}>更新到最新版本</button>` : ""}
                 <button class="btn ghost small" type="button" data-move="up" ${state.readonly || index === 0 ? "disabled" : ""}>上移</button>
                 <button class="btn ghost small" type="button" data-move="down" ${state.readonly || index === state.questions.length - 1 ? "disabled" : ""}>下移</button>
                 <button class="btn danger small" type="button" data-delete-question ${state.readonly ? "disabled" : ""}>删除</button>

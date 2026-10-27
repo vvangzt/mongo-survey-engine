@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page">
+  <div class="shell">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow"><a href="/questions">题目库</a> / 题目详情</div>
+        <h1 id="questionTitle">加载中…</h1>
+        <p class="muted" id="questionMeta"></p>
+      </div>
+      <div class="qv-actions">
+        <a class="btn secondary" id="statsLink" href="#">跨问卷统计</a>
+        <button class="btn" id="newVersionButton" type="button">改题（生成新版本）</button>
+      </div>
+    </div>
+
+    <div class="grid qv-detail-grid">
+      <section class="card">
+        <h2>当前版本内容</h2>
+        <div id="currentContent" class="qv-content"></div>
+      </section>
+      <aside class="card">
+        <h2>操作</h2>
+        <div class="qv-stack">
+          <div class="field">
+            <label for="shareUsername">共享给（用户名）</label>
+            <input id="shareUsername" placeholder="例如：alice_01">
+          </div>
+          <div class="field">
+            <label for="sharePermission">权限</label>
+            <select id="sharePermission">
+              <option value="use">可使用（插入自己的问卷）</option>
+              <option value="view">仅查看</option>
+            </select>
+          </div>
+          <button class="btn secondary" id="shareButton" type="button">共享</button>
+          <button class="btn ghost" id="forkButton" type="button">派生为新题目</button>
+          <button class="btn ghost danger" id="deleteButton" type="button">删除题目</button>
+        </div>
+        <div id="shareList" class="qv-stack qv-shares"></div>
+      </aside>
+    </div>
+
+    <div class="card qv-panel hidden" id="versionPanel">
+      <h2>生成新版本</h2>
+      <p class="muted">新版本不会改动任何已发布问卷；已使用旧版本的问卷保持原样。</p>
+      <form id="versionForm">
+        <div id="versionFormBody"></div>
+        <div class="form-error hidden" id="versionError" role="alert"></div>
+        <div class="qv-actions">
+          <button class="btn secondary" type="button" id="cancelVersion">取消</button>
+          <button class="btn" type="submit">保存为新版本</button>
+        </div>
+      </form>
+    </div>
+
+    <section class="card">
+      <h2>版本历史</h2>
+      <p class="muted">v1 → v2 → v3 是不可变的链条，可以随时恢复旧版本（恢复也会生成一个新版本）。</p>
+      <div id="versionList" class="qv-versions"></div>
+    </section>
+
+    <section class="card">
+      <h2>被哪些问卷使用</h2>
+      <p class="muted">修改题目之前，先看这里判断影响范围。</p>
+      <div id="usageList" class="qv-usages"></div>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/question_form.js" defer></script>
+<script src="/static/js/question_detail.js" defer></script>
+{% endblock %}

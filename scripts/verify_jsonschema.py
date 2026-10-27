@@ -24,6 +24,13 @@ EXAMPLE_TO_SCHEMA = {
     "responses.anonymous.example.json": "responses.schema.json",
     "responses.identified-short-path.example.json": "responses.schema.json",
     "survey_stat_snapshots.example.json": "survey_stat_snapshots.schema.json",
+    "questions.example.json": "questions.schema.json",
+    "question_versions.example.json": "question_versions.schema.json",
+    "question_shares.example.json": "question_shares.schema.json",
+    "question_libraries.example.json": "question_libraries.schema.json",
+    "question_library_items.example.json": "question_library_items.schema.json",
+    "survey_versions.with_library_refs.example.json": "survey_versions.schema.json",
+    "responses.with_library_refs.example.json": "responses.schema.json",
 }
 
 

@@ -1,0 +1,15 @@
+﻿OK   users.example.json -> users.schema.json
+OK   surveys.example.json -> surveys.schema.json
+OK   survey_versions.example.json -> survey_versions.schema.json
+OK   responses.anonymous.example.json -> responses.schema.json
+OK   responses.identified-short-path.example.json -> responses.schema.json
+OK   survey_stat_snapshots.example.json -> survey_stat_snapshots.schema.json
+OK   questions.example.json -> questions.schema.json
+OK   question_versions.example.json -> question_versions.schema.json
+OK   question_shares.example.json -> question_shares.schema.json
+OK   question_libraries.example.json -> question_libraries.schema.json
+OK   question_library_items.example.json -> question_library_items.schema.json
+OK   survey_versions.with_library_refs.example.json -> survey_versions.schema.json
+OK   responses.with_library_refs.example.json -> responses.schema.json
+
+All 13 examples passed

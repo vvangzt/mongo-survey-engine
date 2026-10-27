@@ -12,7 +12,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from schemas.pydantic.models import (
     Answer,
+    JumpLogic,
+    ObjectIdStr,
     Question,
+    QuestionId,
     Slug,
     SubmissionToken,
 )
@@ -134,6 +137,14 @@ class PublishedOut(BaseModel):
     published_at: datetime
 
 
+class FromLibraryIn(StrictRequest):
+    """Insert a shared-library question into the survey draft."""
+
+    question_version_id: ObjectIdStr
+    question_id: QuestionId | None = None
+    logic: JumpLogic | None = None
+
+
 class SubmitIn(StrictRequest):
     answers: list[Answer] = Field(default_factory=list, max_length=300)
     is_anonymous: bool = False
@@ -159,6 +170,7 @@ class SubmitOut(BaseModel):
 __all__ = [
     "ClosedOut",
     "DraftUpdateIn",
+    "FromLibraryIn",
     "PublishedOut",
     "QuestionAddedOut",
     "SubmitIn",

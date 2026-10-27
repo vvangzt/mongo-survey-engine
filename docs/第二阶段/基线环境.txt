@@ -1,0 +1,11 @@
+﻿基线环境（第二阶段开始时）
+日期: 2026-10-26
+Python: 3.13.7
+Platform: Windows 11
+FastAPI: 0.146.0
+Pydantic: 2.13.4
+PyMongo: 4.19.0
+Pytest: pytest 9.1.1
+MongoDB: db version v8.3.11
+git: dd63819 (tag phase1-final)
+测试命令: $env:MONGODB_TEST_URI='mongodb://127.0.0.1:27017'; python -m pytest -q -p no:cacheprovider

@@ -44,6 +44,23 @@ async function main() {
   const snapshot = new models.SurveyStatSnapshot(
     load('survey_stat_snapshots.example.json'),
   );
+  const question = new models.Question(load('questions.example.json'));
+  const questionVersion = new models.QuestionVersion(
+    load('question_versions.example.json'),
+  );
+  const share = new models.QuestionShare(load('question_shares.example.json'));
+  const library = new models.QuestionLibrary(
+    load('question_libraries.example.json'),
+  );
+  const libraryItem = new models.QuestionLibraryItem(
+    load('question_library_items.example.json'),
+  );
+  const refVersion = new models.SurveyVersion(
+    load('survey_versions.with_library_refs.example.json'),
+  );
+  const refResponse = new models.Response(
+    load('responses.with_library_refs.example.json'),
+  );
 
   await user.validate();
   await survey.validate();
@@ -51,6 +68,13 @@ async function main() {
   await anonymous.validate();
   await identified.validate();
   await snapshot.validate();
+  await question.validate();
+  await questionVersion.validate();
+  await share.validate();
+  await library.validate();
+  await libraryItem.validate();
+  await refVersion.validate();
+  await refResponse.validate();
 
   console.log('OK   all Mongoose example documents validated');
   console.log(
@@ -87,6 +111,67 @@ async function main() {
   await expectRejected(
     'anonymous response with identity',
     new models.Response(badAnonymous),
+  );
+
+  // ---- phase 2: shared question library -------------------------------
+
+  const pythonHash = questionVersion.content_hash;
+  if (models.hashContent(questionVersion.content) !== pythonHash) {
+    throw new Error('JS and Python content hashes disagree');
+  }
+  console.log('OK   content hash matches the Python implementation');
+
+  if (refVersion.content_schema_version !== 2) {
+    throw new Error('expected content_schema_version 2');
+  }
+  const referenced = refVersion.questions.filter(
+    (item) => item.question_ref != null,
+  );
+  if (referenced.length !== 2) {
+    throw new Error(`expected 2 referenced questions, got ${referenced.length}`);
+  }
+  console.log(
+    'OK   survey version question_ref:',
+    referenced.map((item) => item.question_id).join(', '),
+  );
+  console.log(
+    'OK   response answer refs:',
+    refResponse.answers.filter((item) => item.question_ref != null).length,
+  );
+
+  const tamperedVersion = load('question_versions.example.json');
+  tamperedVersion.content.title = '被篡改的标题';
+  await expectRejected(
+    'question version with a stale content_hash',
+    new models.QuestionVersion(tamperedVersion),
+  );
+
+  const orphanVersion = load('question_versions.example.json');
+  orphanVersion.version_no = 1;
+  await expectRejected(
+    'first question version with a parent',
+    new models.QuestionVersion(orphanVersion),
+  );
+
+  const missingParent = load('question_versions.example.json');
+  missingParent.parent_version_id = null;
+  await expectRejected(
+    'later question version without a parent',
+    new models.QuestionVersion(missingParent),
+  );
+
+  const selfShare = load('question_shares.example.json');
+  selfShare.grantee_id = selfShare.granted_by;
+  await expectRejected(
+    'share granted to the owner',
+    new models.QuestionShare(selfShare),
+  );
+
+  const badVisibility = load('questions.example.json');
+  badVisibility.visibility = 'everyone';
+  await expectRejected(
+    'unknown question visibility',
+    new models.Question(badVisibility),
   );
 
   console.log('\nMongoose schema checks passed');

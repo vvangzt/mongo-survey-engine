@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://survey-system.local/json-schema/question_libraries.schema.json",
+  "title": "question_libraries collection document",
+  "description": "A named question bank owned by one user. Items live in question_library_items and reference the question entity (not a version), so a bank always shows the latest version. Semantic invariants (checked by the service): name is unique per owner; visibility private means owner-only, public means any signed-in user may browse and pick questions from it; only the owner may rename, change visibility or delete it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId"
+    },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "owner_id": {
+      "$ref": "common.schema.json#/$defs/ObjectId",
+      "description": "Owner; only the owner may modify the bank."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Display name, unique per owner."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "visibility": {
+      "enum": [
+        "private",
+        "public"
+      ],
+      "description": "private is owner-only; public may be browsed by any signed-in user."
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/UtcDateTime"
+    }
+  },
+  "required": [
+    "_id",
+    "schema_version",
+    "owner_id",
+    "name",
+    "description",
+    "visibility",
+    "created_at",
+    "updated_at"
+  ]
+}
