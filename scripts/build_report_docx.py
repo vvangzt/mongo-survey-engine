@@ -17,6 +17,7 @@ from docx.enum.section import WD_SECTION
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.enum.table import WD_ROW_HEIGHT_RULE
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Inches, Pt, RGBColor
@@ -24,6 +25,7 @@ from docx.shared import Cm, Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "project-report.md"
 TARGET = ROOT / "docs" / "项目完成报告.docx"
+REPO_URL = "https://github.com/vvangzt/mongo-survey-engine"
 SCREENSHOT_DIR = ROOT / "docs"
 
 BODY_CN = "SimSun"
@@ -213,6 +215,36 @@ def add_field(paragraph, instruction: str, placeholder: str = "") -> None:
     run._r.append(separate)
     run._r.append(text)
     run._r.append(end)
+
+
+def add_hyperlink(paragraph, url: str, text: str, *, size: float = 9) -> None:
+    part = paragraph.part
+    relationship_id = part.relate_to(url, RT.HYPERLINK, is_external=True)
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), relationship_id)
+    run = OxmlElement("w:r")
+    rpr = OxmlElement("w:rPr")
+    rfonts = OxmlElement("w:rFonts")
+    rfonts.set(qn("w:ascii"), BODY_EN)
+    rfonts.set(qn("w:hAnsi"), BODY_EN)
+    rfonts.set(qn("w:eastAsia"), BODY_CN)
+    color = OxmlElement("w:color")
+    color.set(qn("w:val"), "1F4E79")
+    size_el = OxmlElement("w:sz")
+    size_el.set(qn("w:val"), str(int(size * 2)))
+    underline = OxmlElement("w:u")
+    underline.set(qn("w:val"), "single")
+    rpr.append(rfonts)
+    rpr.append(color)
+    rpr.append(size_el)
+    rpr.append(underline)
+    run.append(rpr)
+    text_el = OxmlElement("w:t")
+    text_el.set(qn("xml:space"), "preserve")
+    text_el.text = text
+    run.append(text_el)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
 
 
 def set_page_numbering(section, fmt: str) -> None:
@@ -572,10 +604,18 @@ def build_cover(document: Document) -> None:
     row.height = Cm(29.4)
     row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
 
-    first = cell.paragraphs[0]
+    repo_p = cell.paragraphs[0]
+    repo_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    repo_p.paragraph_format.first_line_indent = Pt(0)
+    set_paragraph_spacing(repo_p, before=0, after=16)
+    run = repo_p.add_run("GitHub 仓库：")
+    set_run_font(run, size=9, color=GRAY)
+    add_hyperlink(repo_p, REPO_URL, REPO_URL, size=9)
+
+    first = cell.add_paragraph()
     first.alignment = WD_ALIGN_PARAGRAPH.CENTER
     first.paragraph_format.first_line_indent = Pt(0)
-    set_paragraph_spacing(first, before=18, after=0)
+    set_paragraph_spacing(first, before=12, after=0)
     run = first.add_run("华东师范大学")
     set_run_font(run, size=22, bold=False, color=BLACK)
     add_char_spacing(run, 40)

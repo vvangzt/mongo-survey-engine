@@ -4,6 +4,8 @@
 所有业务数据存储在 **MongoDB** 中，前端使用 **Jinja2 + 原生 JavaScript**，
 不需要 Node.js 构建流程。
 
+**GitHub 仓库：<https://github.com/vvangzt/mongo-survey-engine>**
+
 ![工作台](docs/screenshots/dashboard.png)
 
 ## 快速开始
@@ -94,6 +96,7 @@ uvicorn backend.main:app --reload
 - [AI 使用日志](docs/ai-usage-log.md)
 - [项目完成报告（Markdown）](docs/project-report.md)
 - [项目完成报告（Word）](docs/项目完成报告.docx)
+- [项目完成报告（提交版 PDF）](docs/2026_ECNU_PJ1_2_王子腾.pdf)
 - 管理端接口需要登录 Cookie 或 `Authorization: Bearer <token>`；
   公开填写接口在允许匿名的问卷中不需要登录。
 - 详细集合划分、字段和索引见本文后续章节及 `schemas/` 目录。
